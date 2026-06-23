@@ -98,6 +98,7 @@
     <button class="tab" data-view="listas">Listas</button>
     <button class="tab" data-view="campanha">Nova campanha</button>
     <button class="tab" data-view="acompanhar">Campanhas</button>
+    <button class="tab" data-view="conexao">Conexão</button>
   </nav>
   <main>
 
@@ -181,6 +182,27 @@
       <div id="a-detail" class="hide" style="margin-top:18px"></div>
     </section>
 
+    <!-- CONEXAO -->
+    <section id="v-conexao" class="hide">
+      <h2>Conexão do número (chip)</h2>
+      <p class="mut" style="margin-top:0">Conecte um número novo (se o atual cair/for banido) ou desconecte o atual.</p>
+      <div class="card">
+        <div class="row between" style="margin-bottom:16px">
+          <div id="cx-status" class="mut">—</div>
+          <button class="btn ghost sm" id="cx-refresh">Atualizar</button>
+        </div>
+        <div class="row">
+          <button class="btn" id="cx-connect">Conectar número</button>
+          <button class="btn ghost hide" id="cx-disconnect">Desconectar</button>
+        </div>
+        <div id="cx-qrwrap" class="hide" style="margin-top:20px;text-align:center">
+          <p class="mut">No WhatsApp do chip: <b>Aparelhos conectados → Conectar um aparelho</b> → escaneie:</p>
+          <div id="cx-qr"></div>
+          <p class="mut" style="margin-top:10px">O QR renova sozinho. Quando conectar, a tela atualiza.</p>
+        </div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -194,6 +216,7 @@ const CONFIG = {
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50YXZldGptZm90bHdtY2d3c2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNTAzNDksImV4cCI6MjA1OTYyNjM0OX0.jWCJr4qPHjiun2BCdx8U4Oi7cQ2gQmU-D0vrk10FGao',
   N8N_SYNC: 'https://n8n-n8n.sf6dqo.easypanel.host/webhook/HX-gghx-sync-grupos',
   N8N_DISPARAR: 'https://n8n-n8n.sf6dqo.easypanel.host/webhook/HX-gghx-disparar',
+  N8N_CONEXAO: 'https://n8n-n8n.sf6dqo.easypanel.host/webhook/HX-gghx-conexao',
 };
 const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
@@ -236,10 +259,12 @@ document.querySelectorAll('nav .tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('nav .tab').forEach(x=>x.classList.remove('on'));
   t.classList.add('on');
   const v=t.dataset.view;
-  ['grupos','listas','campanha','acompanhar'].forEach(x=>$('v-'+x).classList.toggle('hide', x!==v));
+  ['grupos','listas','campanha','acompanhar','conexao'].forEach(x=>$('v-'+x).classList.toggle('hide', x!==v));
+  if(conexaoPoll && v!=='conexao'){ clearInterval(conexaoPoll); conexaoPoll=null; }
   if(v==='listas') loadListas();
   if(v==='campanha') refreshCampForm();
   if(v==='acompanhar') loadCampanhas();
+  if(v==='conexao') loadConexao();
 });
 function goView(v){ document.querySelector(`nav .tab[data-view="${v}"]`).click(); }
 
@@ -400,6 +425,60 @@ async function viewCampaign(id){
   $('a-detail').scrollIntoView({behavior:'smooth'});
 }
 $('a-refresh').onclick = loadCampanhas;
+
+// ============ CONEXÃO ============
+let conexaoPoll=null;
+async function conexaoCall(action){
+  const { data:{ session } } = await sb.auth.getSession();
+  const r = await fetch(CONFIG.N8N_CONEXAO,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ action, access_token: session.access_token })});
+  return r.json().catch(()=>({ok:false,error:'resposta inválida'}));
+}
+function renderConexao(j){
+  if(!j||!j.ok){ $('cx-status').innerHTML='<span style="color:var(--red)">Erro ao consultar status</span>'; return; }
+  const dev=j.device||{};
+  if(j.connected){
+    $('cx-status').innerHTML=`<span class="badge b-concluida">🟢 Conectado</span> ${dev.name?('· <b>'+esc(dev.name)+'</b>'):''} ${dev.phone?('· '+esc(dev.phone)):''}`;
+    $('cx-connect').textContent='Trocar número'; $('cx-disconnect').classList.remove('hide');
+  } else {
+    $('cx-status').innerHTML=`<span class="badge b-erro">🔴 Desconectado</span> <span class="mut">${esc(j.info||'')}</span>`;
+    $('cx-connect').textContent='Conectar número'; $('cx-disconnect').classList.add('hide');
+  }
+}
+async function loadConexao(){
+  if(conexaoPoll){ clearInterval(conexaoPoll); conexaoPoll=null; }
+  $('cx-qrwrap').classList.add('hide');
+  $('cx-status').innerHTML='<span class="spin"></span> verificando...';
+  renderConexao(await conexaoCall('status'));
+}
+async function mostrarQR(){
+  const j=await conexaoCall('qr');
+  if(j&&j.ok&&j.image){ $('cx-qr').innerHTML=`<img src="${j.image}" alt="QR" style="width:250px;height:250px;border-radius:10px;background:#fff;padding:8px">`; }
+  else { $('cx-qr').innerHTML='<span class="mut">QR indisponível agora '+esc((j&&j.error)?('('+j.error+')'):'')+'</span>'; }
+}
+$('cx-refresh').onclick=loadConexao;
+$('cx-connect').onclick=async ()=>{
+  if($('cx-connect').textContent.includes('Trocar')){
+    if(!confirm('Desconectar o número atual pra conectar outro?')) return;
+    $('cx-connect').disabled=true; $('cx-connect').innerHTML='<span class="spin"></span>';
+    await conexaoCall('disconnect'); $('cx-connect').disabled=false; $('cx-connect').textContent='Conectar número';
+  }
+  $('cx-qrwrap').classList.remove('hide'); $('cx-qr').innerHTML='<span class="spin"></span> gerando QR...';
+  await mostrarQR();
+  let ticks=0;
+  if(conexaoPoll) clearInterval(conexaoPoll);
+  conexaoPoll=setInterval(async ()=>{
+    ticks++;
+    const s=await conexaoCall('status');
+    if(s&&s.connected){ clearInterval(conexaoPoll); conexaoPoll=null; $('cx-qrwrap').classList.add('hide'); toast('Número conectado! 🎉'); renderConexao(s); }
+    else if(ticks%4===0){ await mostrarQR(); }   // renova QR ~a cada 20s
+  }, 5000);
+};
+$('cx-disconnect').onclick=async ()=>{
+  if(!confirm('Desconectar o número atual?')) return;
+  $('cx-disconnect').disabled=true; await conexaoCall('disconnect'); $('cx-disconnect').disabled=false;
+  toast('Desconectado'); loadConexao();
+};
 
 // go
 init();
