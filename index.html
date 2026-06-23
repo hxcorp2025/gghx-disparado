@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gestor de Grupos HX — Disparador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161922; --panel2:#1d2230; --line:#262c3a;
+    --txt:#e8ebf2; --mut:#8a93a6; --accent:#1fce6d; --accent2:#19a957;
+    --red:#ff5470; --amber:#ffb020; --blue:#3a8dff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;font-weight:600}
+  input,textarea,select{font-family:inherit;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:10px 12px;font-size:14px;width:100%}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+  .hide{display:none!important}
+  .btn{background:var(--accent);color:#04210f;padding:10px 16px}
+  .btn:hover{background:var(--accent2)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  .btn.ghost:hover{border-color:var(--mut)}
+  .btn.sm{padding:7px 12px;font-size:13px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .mut{color:var(--mut)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+
+  /* LOGIN */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  #login .box{width:100%;max-width:360px}
+  .logo{font-weight:700;font-size:20px;letter-spacing:-.3px}
+  .logo b{color:var(--accent)}
+
+  /* APP */
+  header{position:sticky;top:0;z-index:10;background:#11141ccc;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:12px 18px}
+  nav{display:flex;gap:6px;padding:12px 18px 0;flex-wrap:wrap}
+  nav .tab{padding:9px 14px;border-radius:9px;color:var(--mut);font-weight:600;background:transparent;border:1px solid transparent}
+  nav .tab.on{color:var(--txt);background:var(--panel);border-color:var(--line)}
+  main{padding:18px;max-width:1100px;margin:0 auto}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .between{justify-content:space-between}
+  h2{font-size:17px;margin:0 0 4px}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .search{max-width:280px}
+  .count-pill{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:13px;color:var(--mut)}
+  .count-pill b{color:var(--accent)}
+
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  tbody tr:hover{background:var(--panel2)}
+  td .gid{color:var(--mut);font-size:12px}
+  input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
+  .scroll{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:12px}
+
+  .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600}
+  .b-rascunho{background:#2a2f3d;color:var(--mut)}
+  .b-rodando{background:#163a6e;color:var(--blue)}
+  .b-concluida{background:#10351f;color:var(--accent)}
+  .b-pausada,.b-erro{background:#3a1622;color:var(--red)}
+  .st-enviado{color:var(--accent)} .st-pendente{color:var(--mut)} .st-falha{color:var(--red)} .st-pulado{color:var(--amber)}
+
+  .field{margin-bottom:14px}
+  .field label{display:block;margin-bottom:6px;font-weight:600;font-size:13px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:12px 18px;border-radius:10px;z-index:50;box-shadow:0 8px 30px #0008}
+  .toast.err{border-color:var(--red)}
+  .listrow{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--panel)}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid #fff5;border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr}main{padding:12px}.gid{display:none}}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="login">
+  <div class="box card">
+    <div class="logo" style="margin-bottom:6px">Gestor de Grupos <b>HX</b></div>
+    <p class="mut" style="margin:0 0 18px">Disparador interno · acesso restrito</p>
+    <div class="field"><label>E-mail</label><input id="li-email" type="email" autocomplete="username" placeholder="voce@hookmidia.com"></div>
+    <div class="field"><label>Senha</label><input id="li-pass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+    <button class="btn" style="width:100%" id="li-btn">Entrar</button>
+    <p id="li-err" class="mut" style="color:var(--red);margin:12px 0 0;min-height:18px"></p>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hide">
+  <header>
+    <div class="logo">Gestor de Grupos <b>HX</b></div>
+    <div class="row"><span class="mut" id="who"></span><button class="btn ghost sm" id="logout">Sair</button></div>
+  </header>
+  <nav>
+    <button class="tab on" data-view="grupos">Grupos</button>
+    <button class="tab" data-view="listas">Listas</button>
+    <button class="tab" data-view="campanha">Nova campanha</button>
+    <button class="tab" data-view="acompanhar">Campanhas</button>
+  </nav>
+  <main>
+
+    <!-- GRUPOS -->
+    <section id="v-grupos">
+      <div class="toolbar between">
+        <div class="row">
+          <input class="search" id="g-search" placeholder="Buscar grupo...">
+          <span class="count-pill"><b id="g-selcount">0</b> selecionados</span>
+        </div>
+        <div class="row">
+          <button class="btn ghost sm" id="g-sync">Sincronizar grupos</button>
+          <button class="btn ghost sm" id="g-save">Salvar como lista</button>
+          <button class="btn sm" id="g-tocamp">Criar campanha →</button>
+        </div>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr>
+            <th style="width:42px"><input type="checkbox" id="g-all"></th>
+            <th>Grupo</th><th style="width:120px">Participantes</th>
+          </tr></thead>
+          <tbody id="g-body"></tbody>
+        </table>
+      </div>
+      <p class="mut" id="g-empty" style="margin-top:12px"></p>
+    </section>
+
+    <!-- LISTAS -->
+    <section id="v-listas" class="hide">
+      <h2>Listas salvas ("grupos de grupos")</h2>
+      <p class="mut" style="margin-top:0">Carregue uma lista pra marcar os grupos dela na aba Grupos.</p>
+      <div id="l-body"></div>
+      <p class="mut" id="l-empty"></p>
+    </section>
+
+    <!-- NOVA CAMPANHA -->
+    <section id="v-campanha" class="hide">
+      <h2>Nova campanha</h2>
+      <div class="card" style="margin-top:12px">
+        <p class="row" style="margin-top:0"><span class="count-pill"><b id="c-count">0</b> grupos selecionados</span>
+          <span class="mut">— selecione na aba Grupos ou carregue uma lista</span></p>
+        <div class="field"><label>Nome da campanha (opcional)</label><input id="c-nome" placeholder="Ex: Aviso sorteio 24/06"></div>
+        <div class="field"><label>Mensagem</label><textarea id="c-msg" rows="5" placeholder="Escreva a mensagem... (no modo fantasma todos são marcados sem precisar de @)"></textarea></div>
+        <div class="grid2">
+          <div class="field"><label>Tipo de menção</label>
+            <select id="c-tipo">
+              <option value="fantasma" selected>Fantasma (marca todos, texto limpo) — recomendado</option>
+              <option value="all">@all (marca todos, mostra @all no texto)</option>
+              <option value="nenhuma">Sem menção (só a mensagem)</option>
+            </select>
+          </div>
+          <div class="field"><label>Intervalo entre grupos (segundos)</label><input id="c-int" type="number" min="0" value="60"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Jitter aleatório (segundos, anti-ban)</label><input id="c-jit" type="number" min="0" value="20"></div>
+          <div class="field" style="display:flex;align-items:flex-end"><button class="btn" style="width:100%" id="c-fire">Disparar campanha</button></div>
+        </div>
+        <p class="mut" id="c-hint">⏱️ Ex: 60s + jitter 20s = espera de 60 a 80s entre cada grupo. Reduz risco de bloqueio.</p>
+      </div>
+    </section>
+
+    <!-- ACOMPANHAR -->
+    <section id="v-acompanhar" class="hide">
+      <div class="toolbar between"><h2 style="margin:0">Campanhas</h2><button class="btn ghost sm" id="a-refresh">Atualizar</button></div>
+      <div id="a-body"></div>
+      <p class="mut" id="a-empty"></p>
+      <div id="a-detail" class="hide" style="margin-top:18px"></div>
+    </section>
+
+  </main>
+</div>
+
+<div id="toast" class="toast hide"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ============ CONFIG ============
+const CONFIG = {
+  SUPABASE_URL: 'https://ntavetjmfotlwmcgwsju.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50YXZldGptZm90bHdtY2d3c2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNTAzNDksImV4cCI6MjA1OTYyNjM0OX0.jWCJr4qPHjiun2BCdx8U4Oi7cQ2gQmU-D0vrk10FGao',
+  N8N_SYNC: 'https://n8n-n8n.sf6dqo.easypanel.host/webhook/HX-gghx-sync-grupos',
+  N8N_DISPARAR: 'https://n8n-n8n.sf6dqo.easypanel.host/webhook/HX-gghx-disparar',
+};
+const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+
+// ============ STATE ============
+let GRUPOS = [];                 // [{group_id, subject, participantes}]
+const selected = new Set();      // group_ids selecionados
+let pollTimer = null;
+
+// ============ HELPERS ============
+const $ = (id)=>document.getElementById(id);
+function toast(msg, err){ const t=$('toast'); t.textContent=msg; t.className='toast'+(err?' err':''); setTimeout(()=>t.classList.add('hide'),3200); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function badge(st){ return `<span class="badge b-${st}">${st}</span>`; }
+
+// ============ AUTH ============
+async function init(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session) showApp(session); else showLogin();
+}
+function showLogin(){ $('login').classList.remove('hide'); $('app').classList.add('hide'); }
+function showApp(session){
+  $('login').classList.add('hide'); $('app').classList.remove('hide');
+  $('who').textContent = session.user.email;
+  loadGrupos();
+}
+$('li-btn').onclick = async ()=>{
+  $('li-err').textContent='';
+  const email=$('li-email').value.trim(), password=$('li-pass').value;
+  $('li-btn').disabled=true; $('li-btn').innerHTML='<span class="spin"></span>';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  $('li-btn').disabled=false; $('li-btn').textContent='Entrar';
+  if(error){ $('li-err').textContent = 'Falha no login: '+error.message; return; }
+  showApp(data.session);
+};
+$('li-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') $('li-btn').click(); });
+$('logout').onclick = async ()=>{ await sb.auth.signOut(); selected.clear(); showLogin(); };
+
+// ============ NAV ============
+document.querySelectorAll('nav .tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('nav .tab').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');
+  const v=t.dataset.view;
+  ['grupos','listas','campanha','acompanhar'].forEach(x=>$('v-'+x).classList.toggle('hide', x!==v));
+  if(v==='listas') loadListas();
+  if(v==='campanha') refreshCampForm();
+  if(v==='acompanhar') loadCampanhas();
+});
+function goView(v){ document.querySelector(`nav .tab[data-view="${v}"]`).click(); }
+
+// ============ GRUPOS ============
+async function loadGrupos(){
+  $('g-empty').textContent='Carregando...';
+  const { data, error } = await sb.from('gghx_grupos').select('group_id,subject,participantes').order('subject',{ascending:true});
+  if(error){ $('g-empty').textContent='Erro: '+error.message; return; }
+  GRUPOS = data||[];
+  $('g-empty').textContent = GRUPOS.length? '' : 'Nenhum grupo ainda. Clique em "Sincronizar grupos".';
+  renderGrupos();
+}
+function renderGrupos(){
+  const q = $('g-search').value.toLowerCase();
+  const rows = GRUPOS.filter(g=>!q || (g.subject||'').toLowerCase().includes(q));
+  $('g-body').innerHTML = rows.map(g=>`
+    <tr>
+      <td><input type="checkbox" data-gid="${esc(g.group_id)}" ${selected.has(g.group_id)?'checked':''}></td>
+      <td>${esc(g.subject||'(sem nome)')}<div class="gid">${esc(g.group_id)}</div></td>
+      <td>${g.participantes!=null?g.participantes:'—'}</td>
+    </tr>`).join('');
+  $('g-body').querySelectorAll('input[type=checkbox]').forEach(cb=>cb.onchange=()=>{
+    cb.checked? selected.add(cb.dataset.gid) : selected.delete(cb.dataset.gid);
+    updateSel();
+  });
+  updateSel();
+}
+function updateSel(){ $('g-selcount').textContent=selected.size; $('c-count').textContent=selected.size; }
+$('g-search').oninput = renderGrupos;
+$('g-all').onchange = (e)=>{
+  const q=$('g-search').value.toLowerCase();
+  GRUPOS.filter(g=>!q||(g.subject||'').toLowerCase().includes(q)).forEach(g=> e.target.checked? selected.add(g.group_id):selected.delete(g.group_id));
+  renderGrupos();
+};
+$('g-sync').onclick = async ()=>{
+  const b=$('g-sync'); b.disabled=true; b.innerHTML='<span class="spin"></span> sincronizando';
+  try{
+    const r = await fetch(CONFIG.N8N_SYNC,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const j = await r.json().catch(()=>({}));
+    toast('Sincronizado: '+(j.grupos!=null?j.grupos:'?')+' grupos');
+    await loadGrupos();
+  }catch(e){ toast('Erro ao sincronizar',true); }
+  b.disabled=false; b.textContent='Sincronizar grupos';
+};
+$('g-save').onclick = async ()=>{
+  if(!selected.size) return toast('Selecione grupos primeiro',true);
+  const nome = prompt('Nome da lista (ex: VIPs ativos):'); if(!nome) return;
+  const { error } = await sb.from('gghx_listas').insert({ nome, group_ids:[...selected] });
+  if(error) return toast('Erro: '+error.message,true);
+  toast('Lista "'+nome+'" salva ('+selected.size+' grupos)');
+};
+$('g-tocamp').onclick = ()=>{ if(!selected.size) return toast('Selecione grupos primeiro',true); goView('campanha'); };
+
+// ============ LISTAS ============
+async function loadListas(){
+  $('l-empty').textContent='Carregando...';
+  const { data, error } = await sb.from('gghx_listas').select('*').order('created_at',{ascending:false});
+  if(error){ $('l-empty').textContent='Erro: '+error.message; return; }
+  $('l-empty').textContent = (data&&data.length)?'':'Nenhuma lista salva ainda.';
+  $('l-body').innerHTML = (data||[]).map(l=>`
+    <div class="listrow">
+      <div><b>${esc(l.nome)}</b><div class="mut">${(l.group_ids||[]).length} grupos</div></div>
+      <div class="row">
+        <button class="btn sm" data-load='${esc(JSON.stringify(l.group_ids||[]))}'>Carregar</button>
+        <button class="btn ghost sm" data-del="${l.id}">Excluir</button>
+      </div>
+    </div>`).join('');
+  $('l-body').querySelectorAll('[data-load]').forEach(b=>b.onclick=()=>{
+    selected.clear(); JSON.parse(b.dataset.load).forEach(g=>selected.add(g));
+    toast(selected.size+' grupos carregados'); goView('grupos'); renderGrupos();
+  });
+  $('l-body').querySelectorAll('[data-del]').forEach(b=>b.onclick=async ()=>{
+    if(!confirm('Excluir esta lista?')) return;
+    await sb.from('gghx_listas').delete().eq('id', b.dataset.del); loadListas();
+  });
+}
+
+// ============ NOVA CAMPANHA ============
+function refreshCampForm(){ updateSel(); }
+$('c-fire').onclick = async ()=>{
+  if(!selected.size) return toast('Selecione grupos primeiro',true);
+  const mensagem=$('c-msg').value.trim(); if(!mensagem) return toast('Escreva a mensagem',true);
+  const gids=[...selected];
+  if(!confirm(`Disparar para ${gids.length} grupo(s) com intervalo de ${$('c-int').value}s? Isso vai mandar mensagem de verdade.`)) return;
+  const b=$('c-fire'); b.disabled=true; b.innerHTML='<span class="spin"></span> disparando';
+  try{
+    // 1) cria campanha
+    const { data:camp, error:e1 } = await sb.from('gghx_campanhas').insert({
+      nome: $('c-nome').value.trim()||null, mensagem,
+      tipo_mencao: $('c-tipo').value, intervalo_seg: +$('c-int').value||0, jitter_seg:+$('c-jit').value||0,
+      status:'rascunho', total: gids.length
+    }).select('id').single();
+    if(e1) throw e1;
+    // 2) cria itens
+    const itens = gids.map((g,i)=>({ campanha_id:camp.id, group_id:g, subject:(GRUPOS.find(x=>x.group_id===g)||{}).subject||null, ordem:i+1, status:'pendente' }));
+    const { error:e2 } = await sb.from('gghx_campanha_itens').insert(itens); if(e2) throw e2;
+    // 3) chama motor
+    const { data:{ session } } = await sb.auth.getSession();
+    await fetch(CONFIG.N8N_DISPARAR,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ campanha_id:camp.id, access_token: session.access_token })});
+    toast('Campanha #'+camp.id+' disparada!'); selected.clear(); $('c-msg').value='';
+    goView('acompanhar');
+  }catch(e){ toast('Erro: '+(e.message||e),true); }
+  b.disabled=false; b.textContent='Disparar campanha';
+};
+
+// ============ ACOMPANHAR ============
+async function loadCampanhas(){
+  $('a-empty').textContent='Carregando...'; $('a-detail').classList.add('hide');
+  const { data, error } = await sb.from('gghx_campanhas').select('*').order('criado_em',{ascending:false}).limit(50);
+  if(error){ $('a-empty').textContent='Erro: '+error.message; return; }
+  $('a-empty').textContent=(data&&data.length)?'':'Nenhuma campanha ainda.';
+  $('a-body').innerHTML=(data||[]).map(c=>`
+    <div class="listrow">
+      <div>
+        <b>#${c.id} ${esc(c.nome||'(sem nome)')}</b> ${badge(c.status)}
+        <div class="mut">${c.enviados||0}/${c.total||0} enviados${c.falhas?(' · '+c.falhas+' falhas'):''} · ${esc((c.mensagem||'').slice(0,48))}…</div>
+      </div>
+      <button class="btn ghost sm" data-camp="${c.id}">Ver grupos</button>
+    </div>`).join('');
+  $('a-body').querySelectorAll('[data-camp]').forEach(b=>b.onclick=()=>viewCampaign(b.dataset.camp));
+  // auto-poll se houver campanha rodando
+  if(pollTimer) clearTimeout(pollTimer);
+  if((data||[]).some(c=>c.status==='rodando')) pollTimer=setTimeout(loadCampanhas,5000);
+}
+async function viewCampaign(id){
+  const { data } = await sb.from('gghx_campanha_itens').select('*').eq('campanha_id',id).order('ordem',{ascending:true});
+  $('a-detail').classList.remove('hide');
+  $('a-detail').innerHTML = `<div class="card"><h2 style="margin-top:0">Campanha #${id} — grupos</h2>
+    <div class="scroll"><table><thead><tr><th>Grupo</th><th style="width:110px">Status</th><th style="width:150px">Enviado</th></tr></thead>
+    <tbody>${(data||[]).map(it=>`<tr><td>${esc(it.subject||it.group_id)}</td>
+      <td class="st-${it.status}">${it.status}</td>
+      <td class="mut">${it.enviado_em?new Date(it.enviado_em).toLocaleTimeString('pt-BR'):(it.erro?esc(it.erro.slice(0,30)):'—')}</td></tr>`).join('')}</tbody></table></div></div>`;
+  $('a-detail').scrollIntoView({behavior:'smooth'});
+}
+$('a-refresh').onclick = loadCampanhas;
+
+// go
+init();
+</script>
+</body>
+</html>
