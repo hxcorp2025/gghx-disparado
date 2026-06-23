@@ -98,6 +98,7 @@
     <button class="tab" data-view="listas">Listas</button>
     <button class="tab" data-view="campanha">Nova campanha</button>
     <button class="tab" data-view="acompanhar">Campanhas</button>
+    <button class="tab" data-view="movimentacao">Movimentação</button>
     <button class="tab" data-view="conexao">Conexão</button>
   </nav>
   <main>
@@ -182,6 +183,30 @@
       <div id="a-detail" class="hide" style="margin-top:18px"></div>
     </section>
 
+    <!-- MOVIMENTACAO -->
+    <section id="v-movimentacao" class="hide">
+      <div class="toolbar between">
+        <div class="row">
+          <h2 style="margin:0">Entradas e saídas</h2>
+          <select id="mv-periodo" style="width:auto">
+            <option value="1">Últimas 24h</option>
+            <option value="7" selected>Últimos 7 dias</option>
+            <option value="30">Últimos 30 dias</option>
+          </select>
+        </div>
+        <button class="btn ghost sm" id="mv-refresh">Atualizar agora</button>
+      </div>
+      <p class="mut" id="mv-info" style="margin-top:0"></p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Grupo</th><th style="width:110px">Membros</th><th style="width:100px">Entraram</th><th style="width:100px">Saíram</th><th style="width:90px">Saldo</th></tr></thead>
+          <tbody id="mv-body"></tbody>
+        </table>
+      </div>
+      <p class="mut" id="mv-empty"></p>
+      <div id="mv-detail" class="hide" style="margin-top:18px"></div>
+    </section>
+
     <!-- CONEXAO -->
     <section id="v-conexao" class="hide">
       <h2>Conexão do número (chip)</h2>
@@ -259,11 +284,12 @@ document.querySelectorAll('nav .tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('nav .tab').forEach(x=>x.classList.remove('on'));
   t.classList.add('on');
   const v=t.dataset.view;
-  ['grupos','listas','campanha','acompanhar','conexao'].forEach(x=>$('v-'+x).classList.toggle('hide', x!==v));
+  ['grupos','listas','campanha','acompanhar','movimentacao','conexao'].forEach(x=>$('v-'+x).classList.toggle('hide', x!==v));
   if(conexaoPoll && v!=='conexao'){ clearInterval(conexaoPoll); conexaoPoll=null; }
   if(v==='listas') loadListas();
   if(v==='campanha') refreshCampForm();
   if(v==='acompanhar') loadCampanhas();
+  if(v==='movimentacao') loadMovimentacao();
   if(v==='conexao') loadConexao();
 });
 function goView(v){ document.querySelector(`nav .tab[data-view="${v}"]`).click(); }
@@ -425,6 +451,58 @@ async function viewCampaign(id){
   $('a-detail').scrollIntoView({behavior:'smooth'});
 }
 $('a-refresh').onclick = loadCampanhas;
+
+// ============ MOVIMENTAÇÃO ============
+let MVGRUPOS={};   // group_id -> {subject, participantes}
+async function loadMovimentacao(){
+  $('mv-detail').classList.add('hide'); $('mv-empty').textContent='';
+  $('mv-info').innerHTML='<span class="spin"></span> carregando...';
+  const dias=+$('mv-periodo').value;
+  const desde=new Date(Date.now()-dias*86400000).toISOString();
+  // grupos com contagem
+  const { data:grupos } = await sb.from('gghx_grupos').select('group_id,subject,participantes').not('participantes','is',null).order('subject');
+  MVGRUPOS={}; (grupos||[]).forEach(g=>MVGRUPOS[g.group_id]=g);
+  // movimentos do periodo
+  const { data:movs, error } = await sb.from('gghx_grupo_movimentos').select('group_id,tipo').gte('momento',desde).limit(50000);
+  if(error){ $('mv-info').textContent='Erro: '+error.message; return; }
+  const agg={}; (movs||[]).forEach(m=>{ agg[m.group_id]=agg[m.group_id]||{e:0,s:0}; if(m.tipo==='entrada')agg[m.group_id].e++; else agg[m.group_id].s++; });
+  // monta linhas (grupos com contagem; ordena por movimento desc)
+  let rows=(grupos||[]).map(g=>{ const a=agg[g.group_id]||{e:0,s:0}; return {g, e:a.e, s:a.s, saldo:a.e-a.s}; });
+  rows.sort((x,y)=>(y.e+y.s)-(x.e+x.s) || (x.g.subject||'').localeCompare(y.g.subject||''));
+  const totE=rows.reduce((n,r)=>n+r.e,0), totS=rows.reduce((n,r)=>n+r.s,0);
+  $('mv-info').innerHTML = `No período: <b style="color:var(--accent)">+${totE}</b> entradas · <b style="color:var(--red)">−${totS}</b> saídas · ${rows.length} grupos lidos`;
+  $('mv-empty').textContent = rows.length? '' : 'Sem grupos lidos ainda (snapshot roda a cada 1h; o chip vai sincronizando os grupos).';
+  $('mv-body').innerHTML = rows.map(r=>`
+    <tr style="cursor:pointer" data-mv="${esc(r.g.group_id)}">
+      <td>${esc(r.g.subject||r.g.group_id)}</td>
+      <td>${r.g.participantes!=null?r.g.participantes:'—'}</td>
+      <td style="color:var(--accent)">${r.e?('+'+r.e):'0'}</td>
+      <td style="color:var(--red)">${r.s?('−'+r.s):'0'}</td>
+      <td>${r.saldo>0?'+':''}${r.saldo}</td>
+    </tr>`).join('');
+  $('mv-body').querySelectorAll('[data-mv]').forEach(tr=>tr.onclick=()=>verMovGrupo(tr.dataset.mv, dias));
+}
+async function verMovGrupo(gid, dias){
+  const desde=new Date(Date.now()-dias*86400000).toISOString();
+  const { data } = await sb.from('gghx_grupo_movimentos').select('phone,tipo,momento').eq('group_id',gid).gte('momento',desde).order('momento',{ascending:false}).limit(500);
+  const g=MVGRUPOS[gid]||{};
+  $('mv-detail').classList.remove('hide');
+  $('mv-detail').innerHTML = `<div class="card"><h2 style="margin-top:0">${esc(g.subject||gid)} — quem entrou/saiu</h2>
+    ${(!data||!data.length)?'<p class="mut">Nenhuma movimentação no período.</p>':
+    `<div class="scroll"><table><thead><tr><th>Número</th><th style="width:110px">Tipo</th><th style="width:160px">Quando</th></tr></thead>
+    <tbody>${data.map(m=>`<tr><td>${esc(m.phone)}</td>
+      <td style="color:${m.tipo==='entrada'?'var(--accent)':'var(--red)'}">${m.tipo==='entrada'?'entrou':'saiu'}</td>
+      <td class="mut">${new Date(m.momento).toLocaleString('pt-BR')}</td></tr>`).join('')}</tbody></table></div>`}</div>`;
+  $('mv-detail').scrollIntoView({behavior:'smooth'});
+}
+$('mv-periodo').onchange=loadMovimentacao;
+$('mv-refresh').onclick=async ()=>{
+  const b=$('mv-refresh'); b.disabled=true; b.innerHTML='<span class="spin"></span> atualizando';
+  try{ const {data:{session}}=await sb.auth.getSession();
+    await fetch('https://n8n-n8n.sf6dqo.easypanel.host/webhook/HX-gghx-snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({access_token:session.access_token})}).catch(()=>{});
+    toast('Snapshot disparado — recarrega em alguns segundos'); }catch(e){}
+  setTimeout(loadMovimentacao, 8000); b.disabled=false; b.textContent='Atualizar agora';
+};
 
 // ============ CONEXÃO ============
 let conexaoPoll=null;
