@@ -141,7 +141,20 @@
         <p class="row" style="margin-top:0"><span class="count-pill"><b id="c-count">0</b> grupos selecionados</span>
           <span class="mut">— selecione na aba Grupos ou carregue uma lista</span></p>
         <div class="field"><label>Nome da campanha (opcional)</label><input id="c-nome" placeholder="Ex: Aviso sorteio 24/06"></div>
-        <div class="field"><label>Mensagem</label><textarea id="c-msg" rows="5" placeholder="Escreva a mensagem... (no modo fantasma todos são marcados sem precisar de @)"></textarea></div>
+        <div class="field"><label>Tipo de conteúdo</label>
+          <select id="c-media">
+            <option value="texto" selected>Texto</option>
+            <option value="imagem">Imagem</option>
+            <option value="video">Vídeo</option>
+            <option value="audio">Áudio (nota de voz)</option>
+          </select>
+        </div>
+        <div class="field hide" id="c-filewrap">
+          <label id="c-filelabel">Arquivo de mídia</label>
+          <input type="file" id="c-file">
+          <p class="mut" id="c-filestatus" style="margin-bottom:0"></p>
+        </div>
+        <div class="field"><label id="c-msglabel">Mensagem</label><textarea id="c-msg" rows="5" placeholder="Escreva a mensagem... (no modo fantasma todos são marcados sem precisar de @)"></textarea></div>
         <div class="grid2">
           <div class="field"><label>Tipo de menção</label>
             <select id="c-tipo">
@@ -305,10 +318,32 @@ async function loadListas(){
 }
 
 // ============ NOVA CAMPANHA ============
+let mediaUrl = null;   // URL pública do arquivo subido
+const ACCEPT = { imagem:'image/*', video:'video/*', audio:'audio/*' };
 function refreshCampForm(){ updateSel(); }
+
+$('c-media').onchange = ()=>{
+  const t = $('c-media').value; mediaUrl=null; $('c-file').value=''; $('c-filestatus').textContent='';
+  $('c-filewrap').classList.toggle('hide', t==='texto');
+  if(t!=='texto'){ $('c-file').setAttribute('accept', ACCEPT[t]); $('c-filelabel').textContent='Arquivo de '+(t==='audio'?'áudio (vira nota de voz)':t); }
+  $('c-msglabel').textContent = t==='texto' ? 'Mensagem' : 'Texto (vai abaixo da mídia e marca todos)';
+};
+$('c-file').onchange = async ()=>{
+  const f = $('c-file').files[0]; mediaUrl=null; if(!f) return;
+  const max = 100*1024*1024; if(f.size>max){ $('c-filestatus').textContent='Arquivo muito grande (máx 100MB).'; $('c-file').value=''; return; }
+  $('c-filestatus').innerHTML='<span class="spin"></span> enviando arquivo...';
+  const path = 'campanhas/'+Date.now()+'_'+f.name.replace(/[^\w.\-]/g,'_');
+  const { error } = await sb.storage.from('gghx-midia').upload(path, f, { upsert:true, contentType:f.type });
+  if(error){ $('c-filestatus').textContent='Erro no upload: '+error.message; return; }
+  mediaUrl = sb.storage.from('gghx-midia').getPublicUrl(path).data.publicUrl;
+  $('c-filestatus').innerHTML='✅ '+f.name+' enviado';
+};
+
 $('c-fire').onclick = async ()=>{
   if(!selected.size) return toast('Selecione grupos primeiro',true);
   const mensagem=$('c-msg').value.trim(); if(!mensagem) return toast('Escreva a mensagem',true);
+  const mediaTipo = $('c-media').value;
+  if(mediaTipo!=='texto' && !mediaUrl) return toast('Suba o arquivo de mídia primeiro',true);
   const gids=[...selected];
   if(!confirm(`Disparar para ${gids.length} grupo(s) com intervalo de ${$('c-int').value}s? Isso vai mandar mensagem de verdade.`)) return;
   const b=$('c-fire'); b.disabled=true; b.innerHTML='<span class="spin"></span> disparando';
@@ -317,6 +352,7 @@ $('c-fire').onclick = async ()=>{
     const { data:camp, error:e1 } = await sb.from('gghx_campanhas').insert({
       nome: $('c-nome').value.trim()||null, mensagem,
       tipo_mencao: $('c-tipo').value, intervalo_seg: +$('c-int').value||0, jitter_seg:+$('c-jit').value||0,
+      media_tipo: mediaTipo, media_url: mediaTipo==='texto'? null : mediaUrl,
       status:'rascunho', total: gids.length
     }).select('id').single();
     if(e1) throw e1;
@@ -328,6 +364,7 @@ $('c-fire').onclick = async ()=>{
     await fetch(CONFIG.N8N_DISPARAR,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ campanha_id:camp.id, access_token: session.access_token })});
     toast('Campanha #'+camp.id+' disparada!'); selected.clear(); $('c-msg').value='';
+    mediaUrl=null; $('c-media').value='texto'; $('c-media').onchange();
     goView('acompanhar');
   }catch(e){ toast('Erro: '+(e.message||e),true); }
   b.disabled=false; b.textContent='Disparar campanha';
