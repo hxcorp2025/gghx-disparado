@@ -119,6 +119,10 @@
       <div class="toolbar between">
         <div class="row">
           <input class="search" id="g-search" placeholder="Buscar grupo...">
+          <select id="g-filtro" style="width:auto">
+            <option value="avisos" selected>Só grupos de avisos</option>
+            <option value="todos">Todos os grupos</option>
+          </select>
           <span class="count-pill"><b id="g-selcount">0</b> selecionados</span>
         </div>
         <div class="row">
@@ -332,9 +336,16 @@ async function loadGrupoStats(){
     <div class="statcard sc-out"><div class="lbl">Saíram</div><div class="val" style="color:var(--red)">−${sai}</div><div class="sub">últimos 7 dias</div></div>
     <div class="statcard sc-saldo"><div class="lbl">Saldo</div><div class="val" style="color:${saldo>=0?'var(--accent)':'var(--red)'}">${saldo>=0?'+':''}${saldo}</div><div class="sub">7 dias</div></div>`;
 }
-function renderGrupos(){
+function gruposFiltrados(){
   const q = $('g-search').value.toLowerCase();
-  const rows = GRUPOS.filter(g=>!q || (g.subject||'').toLowerCase().includes(q));
+  const filtro = $('g-filtro') ? $('g-filtro').value : 'todos';
+  return GRUPOS.filter(g=>(!q || (g.subject||'').toLowerCase().includes(q)) && (filtro!=='avisos' || g.is_announcement===true));
+}
+function renderGrupos(){
+  const rows = gruposFiltrados();
+  if($('g-filtro') && $('g-filtro').value==='avisos' && !rows.length){
+    $('g-empty').textContent = 'Nenhum grupo de avisos identificado ainda (as comunidades vão sendo lidas conforme o número sincroniza — clique "Sincronizar grupos" daqui a pouco). Ou troque pra "Todos os grupos".';
+  } else { $('g-empty').textContent=''; }
   $('g-body').innerHTML = rows.map(g=>{
     const tag = g.is_announcement==null ? '' :
       ((g.is_announcement||g.community_id) ? '<span class="gtag gtag-com">Comunidade</span>' : '<span class="gtag gtag-grp">Grupo</span>');
@@ -351,9 +362,9 @@ function renderGrupos(){
 }
 function updateSel(){ $('g-selcount').textContent=selected.size; $('c-count').textContent=selected.size; }
 $('g-search').oninput = renderGrupos;
+$('g-filtro').onchange = renderGrupos;
 $('g-all').onchange = (e)=>{
-  const q=$('g-search').value.toLowerCase();
-  GRUPOS.filter(g=>!q||(g.subject||'').toLowerCase().includes(q)).forEach(g=> e.target.checked? selected.add(g.group_id):selected.delete(g.group_id));
+  gruposFiltrados().forEach(g=> e.target.checked? selected.add(g.group_id):selected.delete(g.group_id));
   renderGrupos();
 };
 $('g-sync').onclick = async ()=>{
