@@ -67,6 +67,8 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:12px 18px;border-radius:10px;z-index:50;box-shadow:0 8px 30px #0008}
   .toast.err{border-color:var(--red)}
+  .gtag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:5px;margin-left:8px;vertical-align:1px}
+  .gtag-com{background:#163a6e;color:#7db4ff} .gtag-grp{background:#2a2f3d;color:#9aa3b5}
   .statcards{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap}
   .statcard{flex:1;min-width:128px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;position:relative;overflow:hidden}
   .statcard .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);font-weight:600;margin-bottom:7px}
@@ -306,7 +308,7 @@ function goView(v){ document.querySelector(`nav .tab[data-view="${v}"]`).click()
 // ============ GRUPOS ============
 async function loadGrupos(){
   $('g-empty').textContent='Carregando...';
-  const { data, error } = await sb.from('gghx_grupos').select('group_id,subject,participantes').eq('ativo',true).order('subject',{ascending:true});
+  const { data, error } = await sb.from('gghx_grupos').select('group_id,subject,participantes,community_id,is_announcement').eq('ativo',true).order('subject',{ascending:true});
   if(error){ $('g-empty').textContent='Erro: '+error.message; return; }
   GRUPOS = data||[];
   $('g-empty').textContent = GRUPOS.length? '' : 'Nenhum grupo ainda. Clique em "Sincronizar grupos".';
@@ -333,12 +335,14 @@ async function loadGrupoStats(){
 function renderGrupos(){
   const q = $('g-search').value.toLowerCase();
   const rows = GRUPOS.filter(g=>!q || (g.subject||'').toLowerCase().includes(q));
-  $('g-body').innerHTML = rows.map(g=>`
-    <tr>
+  $('g-body').innerHTML = rows.map(g=>{
+    const tag = g.is_announcement==null ? '' :
+      ((g.is_announcement||g.community_id) ? '<span class="gtag gtag-com">Comunidade</span>' : '<span class="gtag gtag-grp">Grupo</span>');
+    return `<tr>
       <td><input type="checkbox" data-gid="${esc(g.group_id)}" ${selected.has(g.group_id)?'checked':''}></td>
-      <td>${esc(g.subject||'(sem nome)')}<div class="gid">${esc(g.group_id)}</div></td>
+      <td>${esc(g.subject||'(sem nome)')}${tag}<div class="gid">${esc(g.group_id)}</div></td>
       <td>${g.participantes!=null?g.participantes:'—'}</td>
-    </tr>`).join('');
+    </tr>`;}).join('');
   $('g-body').querySelectorAll('input[type=checkbox]').forEach(cb=>cb.onchange=()=>{
     cb.checked? selected.add(cb.dataset.gid) : selected.delete(cb.dataset.gid);
     updateSel();
@@ -424,7 +428,8 @@ $('c-fire').onclick = async ()=>{
   if(mediaTipo!=='texto' && !mediaUrl) return toast('Suba o arquivo de mídia primeiro',true);
   const gids=[...selected];
   const semLista = gids.filter(g=>{ const gr=GRUPOS.find(x=>x.group_id===g); return gr && gr.participantes==null; }).length;
-  const aviso = semLista>0 ? `\n\n⚠️ ${semLista} grupo(s) ainda sem lista de participantes lida — neles a marcação vai sair como "@all" (visível) em vez do modo limpo. Os demais usam menção limpa.` : '';
+  const isFant = $('c-tipo').value==='fantasma';
+  const aviso = (isFant && semLista>0) ? `\n\n⚠️ ${semLista} grupo(s) ainda sem lista lida — serão PULADOS (não enviados) pra não sujar a copy com @all. Você reenvia neles depois que sincronizarem (botão "Reenviar pulados" na campanha).` : '';
   if(!confirm(`Disparar para ${gids.length} grupo(s) com intervalo de ${$('c-int').value}s? Isso vai mandar mensagem de verdade.`+aviso)) return;
   const b=$('c-fire'); b.disabled=true; b.innerHTML='<span class="spin"></span> disparando';
   try{
@@ -483,13 +488,27 @@ async function loadCampanhas(){
 }
 async function viewCampaign(id){
   const { data } = await sb.from('gghx_campanha_itens').select('*').eq('campanha_id',id).order('ordem',{ascending:true});
+  const pulados=(data||[]).filter(it=>it.status==='pulado').length;
   $('a-detail').classList.remove('hide');
-  $('a-detail').innerHTML = `<div class="card"><h2 style="margin-top:0">Campanha #${id} — grupos</h2>
-    <div class="scroll"><table><thead><tr><th>Grupo</th><th style="width:110px">Status</th><th style="width:150px">Enviado</th></tr></thead>
+  $('a-detail').innerHTML = `<div class="card">
+    <div class="row between" style="margin-bottom:6px"><h2 style="margin:0">Campanha #${id} — grupos</h2>
+      ${pulados>0?`<button class="btn sm" data-repulados="${id}">Reenviar pulados (${pulados})</button>`:''}</div>
+    ${pulados>0?`<p class="mut" style="margin-top:0">${pulados} grupo(s) pulado(s) por estarem sem lista lida. Quando sincronizarem, reenvie (vai com menção limpa).</p>`:''}
+    <div class="scroll"><table><thead><tr><th>Grupo</th><th style="width:110px">Status</th><th style="width:160px">Enviado / motivo</th></tr></thead>
     <tbody>${(data||[]).map(it=>`<tr><td>${esc(it.subject||it.group_id)}</td>
       <td class="st-${it.status}">${it.status}</td>
-      <td class="mut">${it.enviado_em?new Date(it.enviado_em).toLocaleTimeString('pt-BR'):(it.erro?esc(it.erro.slice(0,30)):'—')}</td></tr>`).join('')}</tbody></table></div></div>`;
+      <td class="mut">${it.enviado_em?new Date(it.enviado_em).toLocaleTimeString('pt-BR'):(it.erro?esc(it.erro.slice(0,40)):'—')}</td></tr>`).join('')}</tbody></table></div></div>`;
+  const rb=$('a-detail').querySelector('[data-repulados]'); if(rb) rb.onclick=()=>reenviarPulados(id);
   $('a-detail').scrollIntoView({behavior:'smooth'});
+}
+async function reenviarPulados(id){
+  if(!confirm('Reenviar nos grupos pulados? (os que ficaram sem lista; agora sincronizados vão com menção limpa)')) return;
+  await sb.from('gghx_campanha_itens').update({status:'pendente',erro:null}).eq('campanha_id',id).eq('status','pulado');
+  await sb.from('gghx_campanhas').update({status:'pausada'}).eq('id',id);
+  const { data:{ session } } = await sb.auth.getSession();
+  const r = await fetch(CONFIG.N8N_DISPARAR,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campanha_id:id,access_token:session.access_token})}).catch(()=>null);
+  toast(r&&r.ok?'Reenvio dos pulados iniciado':'Falha ao reenviar',!(r&&r.ok));
+  setTimeout(()=>{loadCampanhas();viewCampaign(id);},4000);
 }
 $('a-refresh').onclick = loadCampanhas;
 
