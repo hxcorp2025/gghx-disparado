@@ -315,15 +315,17 @@ async function loadGrupos(){
 }
 async function loadGrupoStats(){
   const ativos=GRUPOS.length;
+  const lidos=GRUPOS.filter(g=>g.participantes!=null).length;
   const pessoas=GRUPOS.reduce((n,g)=>n+(g.participantes||0),0);
   const desde=new Date(Date.now()-7*86400000).toISOString();
   let ent=0,sai=0;
   try{ const { data:movs }=await sb.from('gghx_grupo_movimentos').select('tipo').gte('momento',desde).limit(50000);
     (movs||[]).forEach(m=>m.tipo==='entrada'?ent++:sai++); }catch(e){}
   const saldo=ent-sai;
+  const parcial = lidos<ativos;
   $('g-stats').innerHTML=`
     <div class="statcard"><div class="lbl">Grupos ativos</div><div class="val">${ativos}</div><div class="sub">deste número</div></div>
-    <div class="statcard sc-pessoas"><div class="lbl">Total de pessoas</div><div class="val">${pessoas.toLocaleString('pt-BR')}</div><div class="sub">nos grupos lidos</div></div>
+    <div class="statcard sc-pessoas"><div class="lbl">Total de pessoas</div><div class="val">${pessoas.toLocaleString('pt-BR')}${parcial?'<span style="font-size:13px;color:var(--amber)"> +</span>':''}</div><div class="sub">${lidos}/${ativos} grupos lidos${parcial?' (enchendo…)':''}</div></div>
     <div class="statcard sc-in"><div class="lbl">Entraram</div><div class="val" style="color:var(--accent)">+${ent}</div><div class="sub">últimos 7 dias</div></div>
     <div class="statcard sc-out"><div class="lbl">Saíram</div><div class="val" style="color:var(--red)">−${sai}</div><div class="sub">últimos 7 dias</div></div>
     <div class="statcard sc-saldo"><div class="lbl">Saldo</div><div class="val" style="color:${saldo>=0?'var(--accent)':'var(--red)'}">${saldo>=0?'+':''}${saldo}</div><div class="sub">7 dias</div></div>`;
@@ -421,7 +423,9 @@ $('c-fire').onclick = async ()=>{
   const mediaTipo = $('c-media').value;
   if(mediaTipo!=='texto' && !mediaUrl) return toast('Suba o arquivo de mídia primeiro',true);
   const gids=[...selected];
-  if(!confirm(`Disparar para ${gids.length} grupo(s) com intervalo de ${$('c-int').value}s? Isso vai mandar mensagem de verdade.`)) return;
+  const semLista = gids.filter(g=>{ const gr=GRUPOS.find(x=>x.group_id===g); return gr && gr.participantes==null; }).length;
+  const aviso = semLista>0 ? `\n\n⚠️ ${semLista} grupo(s) ainda sem lista de participantes lida — neles a marcação vai sair como "@all" (visível) em vez do modo limpo. Os demais usam menção limpa.` : '';
+  if(!confirm(`Disparar para ${gids.length} grupo(s) com intervalo de ${$('c-int').value}s? Isso vai mandar mensagem de verdade.`+aviso)) return;
   const b=$('c-fire'); b.disabled=true; b.innerHTML='<span class="spin"></span> disparando';
   try{
     // 1) cria campanha
