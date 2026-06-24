@@ -435,7 +435,7 @@ async function loadCampanhas(){
         <div class="mut">${c.enviados||0}/${c.total||0} enviados${c.falhas?(' · '+c.falhas+' falhas'):''} · ${esc((c.mensagem||'').slice(0,48))}…</div>
       </div>
       <div class="row">
-        ${(c.status==='rascunho'||c.status==='pausada'||c.status==='erro')?`<button class="btn sm" data-retomar="${c.id}">Retomar</button>`:''}
+        ${c.status!=='concluida'?`<button class="btn sm" data-retomar="${c.id}">Retomar</button>`:''}
         <button class="btn ghost sm" data-camp="${c.id}">Ver grupos</button>
       </div>
     </div>`).join('');
