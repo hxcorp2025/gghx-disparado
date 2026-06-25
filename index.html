@@ -180,10 +180,10 @@
               <option value="nenhuma">Sem menção (só a mensagem)</option>
             </select>
           </div>
-          <div class="field"><label>Intervalo entre grupos (segundos)</label><input id="c-int" type="number" min="5" max="180" value="60"></div>
+          <div class="field"><label>Intervalo entre grupos (segundos)</label><input id="c-int" type="number" min="5" max="180" value="60" oninput="checkIntervalo()"></div>
         </div>
         <div class="grid2">
-          <div class="field"><label>Jitter aleatório (segundos, anti-ban)</label><input id="c-jit" type="number" min="0" value="20"></div>
+          <div class="field"><label>Jitter aleatório (segundos, anti-ban)</label><input id="c-jit" type="number" min="0" value="20" oninput="checkIntervalo()"></div>
           <div class="field" style="display:flex;align-items:flex-end"><button class="btn" style="width:100%" id="c-fire">Disparar campanha</button></div>
         </div>
         <p class="mut" id="c-hint">⏱️ Ex: 60s + jitter 20s = espera de 60 a 80s entre cada grupo. Reduz risco de bloqueio.</p>
@@ -505,16 +505,19 @@ async function loadCampanhas(){
 async function viewCampaign(id){
   const { data } = await sb.from('gghx_campanha_itens').select('*').eq('campanha_id',id).order('ordem',{ascending:true});
   const pulados=(data||[]).filter(it=>it.status==='pulado').length;
+  const falhas=(data||[]).filter(it=>it.status==='falha').length;
   $('a-detail').classList.remove('hide');
   $('a-detail').innerHTML = `<div class="card">
     <div class="row between" style="margin-bottom:6px"><h2 style="margin:0">Campanha #${id} — grupos</h2>
-      ${pulados>0?`<button class="btn sm" data-repulados="${id}">Reenviar pulados (${pulados})</button>`:''}</div>
+      <div class="row" style="gap:6px">${falhas>0?`<button class="btn sm" data-refalhas="${id}">Reenviar falhas (${falhas})</button>`:''}${pulados>0?`<button class="btn sm" data-repulados="${id}">Reenviar pulados (${pulados})</button>`:''}</div></div>
+    ${falhas>0?`<p class="mut" style="margin-top:0">${falhas} grupo(s) com falha de envio. Clique "Reenviar falhas" pra tentar de novo só neles.</p>`:''}
     ${pulados>0?`<p class="mut" style="margin-top:0">${pulados} grupo(s) pulado(s) por estarem sem lista lida. Quando sincronizarem, reenvie (vai com menção limpa).</p>`:''}
     <div class="scroll"><table><thead><tr><th>Grupo</th><th style="width:110px">Status</th><th style="width:160px">Enviado / motivo</th></tr></thead>
     <tbody>${(data||[]).map(it=>`<tr><td>${esc(it.subject||it.group_id)}</td>
       <td class="st-${it.status}">${it.status}</td>
       <td class="mut">${it.enviado_em?new Date(it.enviado_em).toLocaleTimeString('pt-BR'):(it.erro?esc(it.erro.slice(0,40)):'—')}</td></tr>`).join('')}</tbody></table></div></div>`;
   const rb=$('a-detail').querySelector('[data-repulados]'); if(rb) rb.onclick=()=>reenviarPulados(id);
+  const fb=$('a-detail').querySelector('[data-refalhas]'); if(fb) fb.onclick=()=>reenviarFalhas(id);
   $('a-detail').scrollIntoView({behavior:'smooth'});
 }
 async function reenviarPulados(id){
@@ -525,6 +528,27 @@ async function reenviarPulados(id){
   const r = await fetch(CONFIG.N8N_DISPARAR,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campanha_id:id,access_token:session.access_token})}).catch(()=>null);
   toast(r&&r.ok?'Reenvio dos pulados iniciado':'Falha ao reenviar',!(r&&r.ok));
   setTimeout(()=>{loadCampanhas();viewCampaign(id);},4000);
+}
+async function reenviarFalhas(id){
+  if(!confirm('Reenviar só nos grupos que FALHARAM? (os que deram erro de envio; vai tentar de novo neles)')) return;
+  await sb.from('gghx_campanha_itens').update({status:'pendente',erro:null}).eq('campanha_id',id).eq('status','falha');
+  await sb.from('gghx_campanhas').update({status:'pausada'}).eq('id',id);
+  const { data:{ session } } = await sb.auth.getSession();
+  const r = await fetch(CONFIG.N8N_DISPARAR,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campanha_id:id,access_token:session.access_token})}).catch(()=>null);
+  toast(r&&r.ok?'Reenvio das falhas iniciado':'Falha ao reenviar',!(r&&r.ok));
+  setTimeout(()=>{loadCampanhas();viewCampaign(id);},4000);
+}
+// guarda-corpo anti-ban: avisa quando o intervalo fica curto demais (min de espera = intervalo; jitter só soma por cima)
+function checkIntervalo(){
+  const h=$('c-hint'); if(!h) return;
+  const i=Math.max(5,+$('c-int').value||60), j=Math.max(0,+$('c-jit').value||0);
+  if(i<15){
+    h.style.color='#e5484d';
+    h.textContent='⚠️ RISCO DE BAN: '+i+'s ≈ '+Math.round(60/i)+' grupos/min (acima do seguro ~8/min). Recomendado ≥ 60s.';
+  } else {
+    h.style.color='';
+    h.textContent='⏱️ Espera de '+i+'s a '+(i+j)+'s entre cada grupo. Reduz risco de bloqueio.';
+  }
 }
 $('a-refresh').onclick = loadCampanhas;
 
