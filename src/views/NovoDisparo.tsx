@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ViewId } from '../App'
 import { useApp } from '../state'
-import { listCampanhas, uploadMidia, criarEDisparar, agendarDisparo } from '../lib/db'
+import { listCampanhas, uploadMidia, criarEDisparar, agendarDisparo, listContas } from '../lib/db'
 import { FEATURES } from '../lib/config'
 import { toast } from '../lib/toast'
 import { PreviewWhatsApp } from '../components/PreviewWhatsApp'
-import type { Campanha, MediaTipo, MencaoTipo } from '../lib/types'
-
-// Contas conectadas (Fase 3 = vem do banco/Partner API). Hoje 1 chip.
-const CONTAS = [{ id: 'HxSend', nome: 'HxSend · número atual' }]
+import type { Campanha, Conta, MediaTipo, MencaoTipo } from '../lib/types'
 
 const STEPS = ['Campanha', 'Número', 'Configurar', 'Confirmar']
 
@@ -24,7 +21,8 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
   const [campanhaId, setCampanhaId] = useState<number | null>(null)
 
   // etapa 2
-  const [conta, setConta] = useState(CONTAS[0].id)
+  const [contas, setContas] = useState<Conta[]>([{ id: 'hxsend', nome: 'HxSend' }])
+  const [conta, setConta] = useState('hxsend')
 
   // etapa 3
   const [nome, setNome] = useState('')
@@ -44,6 +42,10 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
 
   useEffect(() => {
     listCampanhas().then(setCampanhas).catch(() => {})
+    listContas().then((cs) => {
+      setContas(cs)
+      setConta(cs[0].id)
+    })
   }, [])
 
   const groupIds = useMemo(() => {
@@ -65,7 +67,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
     return !!gr && gr.participantes == null
   }).length
   const nomeCampanha = campanhas.find((c) => c.id === campanhaId)?.nome
-  const nomeConta = CONTAS.find((c) => c.id === conta)?.nome
+  const nomeConta = contas.find((c) => c.id === conta)?.nome
   const riscoBan = intervalo < 15
 
   function podeAvancar(): boolean {
@@ -105,6 +107,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
       media_url: mediaUrl,
       group_ids: groupIds,
       subjects,
+      ...(FEATURES.multiconta ? { conta_id: conta } : {}),
     }
 
     if (agendar) {
@@ -197,15 +200,18 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
           <div className="field">
             <label>Número disparador</label>
             <select value={conta} onChange={(e) => setConta(e.target.value)}>
-              {CONTAS.map((c) => (
+              {contas.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nome}
+                  {c.numero ? ' · ' + c.numero : ''}
                 </option>
               ))}
             </select>
-            <p className="mut" style={{ marginBottom: 0 }}>
-              Hoje só a conta HxSend. Multi-número entra na Fase 3 (Partner API).
-            </p>
+            {!FEATURES.multiconta && (
+              <p className="mut" style={{ marginBottom: 0 }}>
+                Hoje só a conta HxSend. Multi-número entra na Fase 3 (Partner API).
+              </p>
+            )}
           </div>
         )}
 

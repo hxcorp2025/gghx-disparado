@@ -1,5 +1,5 @@
 import { sb } from './supabase'
-import { CONFIG } from './config'
+import { CONFIG, FEATURES } from './config'
 import type { Grupo, Campanha, Disparo, DisparoItem } from './types'
 
 // ===== Tabelas físicas (ponto único do rename no CUTOVER) =====
@@ -16,6 +16,28 @@ const T = {
 async function token(): Promise<string> {
   const { data } = await sb.auth.getSession()
   return data.session?.access_token ?? ''
+}
+
+// ===== CONTAS (multi-número; dormante até multiconta.sql + flag) =====
+import type { Conta } from './types'
+
+const CONTA_FALLBACK: Conta = { id: 'hxsend', nome: 'HxSend', numero: null, status: 'connected' }
+
+// lê gghx_contas; enquanto multiconta está desligado (tabela pode não existir), retorna fallback
+// sem consultar (evita 404 no console). Quando ligar, lê as contas reais.
+export async function listContas(): Promise<Conta[]> {
+  if (!FEATURES.multiconta) return [CONTA_FALLBACK]
+  try {
+    const { data, error } = await sb
+      .from('gghx_contas')
+      .select('id,nome,numero,status')
+      .eq('ativo', true)
+      .order('criado_em', { ascending: true })
+    if (error || !data || !data.length) return [CONTA_FALLBACK]
+    return data as Conta[]
+  } catch {
+    return [CONTA_FALLBACK]
+  }
 }
 
 // ===== GRUPOS =====
@@ -97,6 +119,7 @@ export type NovoDisparo = {
   media_url: string | null
   group_ids: string[]
   subjects: Record<string, string | null>
+  conta_id?: string // só enviado quando FEATURES.multiconta (senão a coluna nem existe)
 }
 
 // cria o disparo + itens e chama o motor. Retorna o id + se o motor confirmou o start.
@@ -113,6 +136,7 @@ export async function criarEDisparar(d: NovoDisparo): Promise<{ id: number; star
       media_url: d.media_tipo === 'texto' ? null : d.media_url,
       status: 'rascunho',
       total: d.group_ids.length,
+      ...(d.conta_id ? { conta_id: d.conta_id } : {}),
     })
     .select('id')
     .single()
@@ -157,6 +181,7 @@ export async function agendarDisparo(d: NovoDisparo, scheduledAtISO: string): Pr
       status: 'agendado',
       scheduled_at: scheduledAtISO,
       total: d.group_ids.length,
+      ...(d.conta_id ? { conta_id: d.conta_id } : {}),
     })
     .select('id')
     .single()

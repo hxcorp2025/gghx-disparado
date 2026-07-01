@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { conexaoCall } from '../lib/db'
+import { conexaoCall, listContas } from '../lib/db'
+import { FEATURES } from '../lib/config'
 import { toast } from '../lib/toast'
+import type { Conta } from '../lib/types'
 
 type Status = {
   ok?: boolean
@@ -10,10 +12,9 @@ type Status = {
   device?: { name?: string; phone?: string }
 }
 
-const CONTAS = [{ id: 'HxSend', nome: 'HxSend' }]
-
 export function Conexao() {
-  const [conta] = useState(CONTAS[0].id)
+  const [contas, setContas] = useState<Conta[]>([{ id: 'hxsend', nome: 'HxSend' }])
+  const [conta, setConta] = useState('hxsend')
   const [status, setStatus] = useState<Status | null>(null)
   const [qr, setQr] = useState<string | null>(null)
   const [showQr, setShowQr] = useState(false)
@@ -28,6 +29,10 @@ export function Conexao() {
 
   useEffect(() => {
     carregar()
+    listContas().then((cs) => {
+      setContas(cs)
+      setConta(cs[0].id)
+    })
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
@@ -81,16 +86,19 @@ export function Conexao() {
 
       <div className="field" style={{ maxWidth: 320 }}>
         <label>Conta</label>
-        <select value={conta} disabled>
-          {CONTAS.map((c) => (
+        <select value={conta} disabled={!FEATURES.multiconta} onChange={(e) => setConta(e.target.value)}>
+          {contas.map((c) => (
             <option key={c.id} value={c.id}>
               {c.nome}
+              {c.numero ? ' · ' + c.numero : ''}
             </option>
           ))}
         </select>
-        <p className="mut" style={{ marginBottom: 0 }}>
-          Criar novas contas/números entra na Fase 3 (Partner API).
-        </p>
+        {!FEATURES.multiconta && (
+          <p className="mut" style={{ marginBottom: 0 }}>
+            Criar novas contas/números entra na Fase 3 (Partner API).
+          </p>
+        )}
       </div>
 
       <div className="card">
