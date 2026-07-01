@@ -46,37 +46,56 @@ export default function App() {
       </>
     )
 
+  const current = TABS.find((t) => t.id === view)!
+
   return (
     <AppProvider>
-      <header>
-        <div className="logo">
-          <span className="dot" />
-          Gestor de Grupos <b>HX</b>
+      <div className="shell">
+        <aside className="sidebar">
+          <div className="brand">
+            <span className="dot" />
+            <div className="brand-txt">
+              Gestor de Grupos <b>HX</b>
+            </div>
+          </div>
+          <nav className="navlist">
+            {TABS.map((t) => (
+              <button key={t.id} className={'navitem' + (view === t.id ? ' on' : '')} onClick={() => setView(t.id)}>
+                <t.Icon />
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="side-foot">
+            <div className="who">
+              <div className="avatar">{(session.user.email || '?')[0].toUpperCase()}</div>
+              <span className="who-mail" title={session.user.email}>
+                {session.user.email}
+              </span>
+            </div>
+            <button className="iconbtn" title="Sair" onClick={() => sb.auth.signOut()}>
+              <LogOut size={17} />
+            </button>
+          </div>
+        </aside>
+
+        <div className="content">
+          <div className="topbar">
+            <div className="topbar-title">
+              <current.Icon size={18} />
+              {current.label}
+            </div>
+          </div>
+          <main>
+            {view === 'estatisticas' && <Estatisticas />}
+            {view === 'grupos' && <Grupos />}
+            {view === 'campanhas' && <Campanhas goTo={setView} />}
+            {view === 'novo' && <NovoDisparo goTo={setView} />}
+            {view === 'disparos' && <Disparos />}
+            {view === 'conexao' && <Conexao />}
+          </main>
         </div>
-        <div className="row">
-          <span className="mut" style={{ fontSize: 13 }}>
-            {session.user.email}
-          </span>
-          <button className="btn ghost sm" onClick={() => sb.auth.signOut()}>
-            <LogOut size={15} /> Sair
-          </button>
-        </div>
-      </header>
-      <nav>
-        {TABS.map((t) => (
-          <button key={t.id} className={'tab' + (view === t.id ? ' on' : '')} onClick={() => setView(t.id)}>
-            <t.Icon /> {t.label}
-          </button>
-        ))}
-      </nav>
-      <main>
-        {view === 'estatisticas' && <Estatisticas />}
-        {view === 'grupos' && <Grupos />}
-        {view === 'campanhas' && <Campanhas goTo={setView} />}
-        {view === 'novo' && <NovoDisparo goTo={setView} />}
-        {view === 'disparos' && <Disparos />}
-        {view === 'conexao' && <Conexao />}
-      </main>
+      </div>
       <Toast />
     </AppProvider>
   )
