@@ -8,7 +8,7 @@ import { PreviewWhatsApp } from '../components/PreviewWhatsApp'
 import type { Campanha, MediaTipo, MencaoTipo } from '../lib/types'
 
 // Contas conectadas (Fase 3 = vem do banco/Partner API). Hoje 1 chip.
-const CONTAS = [{ id: 'HxSend', nome: 'HxSend — número atual' }]
+const CONTAS = [{ id: 'HxSend', nome: 'HxSend · número atual' }]
 
 const STEPS = ['Campanha', 'Número', 'Configurar', 'Confirmar']
 
@@ -179,7 +179,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
                   value={campanhaId ?? ''}
                   onChange={(e) => setCampanhaId(e.target.value ? +e.target.value : null)}
                 >
-                  <option value="">— selecione —</option>
+                  <option value="">selecione...</option>
                   {campanhas.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nome} ({c.group_ids.length} grupos)
@@ -266,7 +266,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
               <div className="field">
                 <label>Tipo de menção</label>
                 <select value={tipoMencao} onChange={(e) => setTipoMencao(e.target.value as MencaoTipo)}>
-                  <option value="fantasma">Fantasma (marca todos, texto limpo) — recomendado</option>
+                  <option value="fantasma">Fantasma (marca todos, texto limpo) · recomendado</option>
                   <option value="all">@all (marca todos, mostra @all)</option>
                   <option value="nenhuma">Sem menção</option>
                 </select>
@@ -314,7 +314,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
                 </tr>
                 <tr>
                   <td className="mut">Campanha</td>
-                  <td>{fonte === 'campanha' ? nomeCampanha || '—' : 'Seleção da aba Grupos'}</td>
+                  <td>{fonte === 'campanha' ? nomeCampanha || '·' : 'Seleção da aba Grupos'}</td>
                 </tr>
                 <tr>
                   <td className="mut">Grupos</td>

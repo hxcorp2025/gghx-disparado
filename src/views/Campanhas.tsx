@@ -97,7 +97,7 @@ export function Campanhas({ goTo }: { goTo: (v: ViewId) => void }) {
           {editId === c.id && (
             <div className="card" style={{ marginBottom: 12 }}>
               <div className="row between" style={{ marginBottom: 8 }}>
-                <b>Editando "{c.nome}" — {editIds.length} grupos</b>
+                <b>Editando "{c.nome}" · {editIds.length} grupos</b>
                 <div className="row">
                   <button className="btn sm" onClick={salvarEdicao}>
                     Salvar

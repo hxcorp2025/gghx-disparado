@@ -134,7 +134,7 @@ export function Grupos() {
                   {tag(g)}
                   <div className="gid">{g.group_id}</div>
                 </td>
-                <td>{g.participantes != null ? g.participantes : '—'}</td>
+                <td>{g.participantes != null ? g.participantes : '·'}</td>
               </tr>
             ))}
           </tbody>

@@ -13,7 +13,7 @@ import { toast } from '../lib/toast'
 import type { Disparo, DisparoItem } from '../lib/types'
 
 function dur(ini: string | null, fim: string | null): string {
-  if (!ini) return '—'
+  if (!ini) return '·'
   const a = new Date(ini).getTime()
   const b = (fim ? new Date(fim) : new Date()).getTime()
   const s = Math.max(0, Math.round((b - a) / 1000))
@@ -168,7 +168,7 @@ export function Disparos() {
       {abertoId != null && (
         <div className="card" style={{ marginTop: 18 }}>
           <div className="row between" style={{ marginBottom: 6 }}>
-            <h2 style={{ margin: 0 }}>Disparo #{abertoId} — grupos</h2>
+            <h2 style={{ margin: 0 }}>Disparo #{abertoId} · grupos</h2>
             <div className="row" style={{ gap: 6 }}>
               {falhas > 0 && (
                 <button className="btn sm" onClick={() => reenviar(abertoId, 'falha')}>
@@ -214,7 +214,7 @@ export function Disparos() {
           {metrics && (
             <p className="mut" style={{ marginTop: 0, fontSize: 12 }}>
               Em grupo, "entregue/lido" é agregado (o WhatsApp não dá leitura por pessoa) e "lido" é um
-              piso — quem desliga o tique azul lê e não conta.
+              piso. Quem desliga o tique azul lê e não conta.
             </p>
           )}
 
@@ -237,7 +237,7 @@ export function Disparos() {
                         ? new Date(it.enviado_em).toLocaleTimeString('pt-BR')
                         : it.erro
                           ? it.erro.slice(0, 40)
-                          : '—'}
+                          : '·'}
                     </td>
                   </tr>
                 ))}

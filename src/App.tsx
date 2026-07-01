@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { BarChart3, Users, FolderOpen, Send, Radio, QrCode, LogOut } from 'lucide-react'
 import { sb } from './lib/supabase'
 import { AppProvider } from './state'
 import { Login } from './components/Login'
@@ -13,13 +14,13 @@ import { Conexao } from './views/Conexao'
 
 export type ViewId = 'estatisticas' | 'grupos' | 'campanhas' | 'novo' | 'disparos' | 'conexao'
 
-const TABS: { id: ViewId; label: string }[] = [
-  { id: 'estatisticas', label: 'Estatísticas' },
-  { id: 'grupos', label: 'Grupos' },
-  { id: 'campanhas', label: 'Campanhas' },
-  { id: 'novo', label: 'Novo disparo' },
-  { id: 'disparos', label: 'Disparos' },
-  { id: 'conexao', label: 'Conexão' },
+const TABS: { id: ViewId; label: string; Icon: typeof BarChart3 }[] = [
+  { id: 'estatisticas', label: 'Estatísticas', Icon: BarChart3 },
+  { id: 'grupos', label: 'Grupos', Icon: Users },
+  { id: 'campanhas', label: 'Campanhas', Icon: FolderOpen },
+  { id: 'novo', label: 'Novo disparo', Icon: Send },
+  { id: 'disparos', label: 'Disparos', Icon: Radio },
+  { id: 'conexao', label: 'Conexão', Icon: QrCode },
 ]
 
 export default function App() {
@@ -49,19 +50,22 @@ export default function App() {
     <AppProvider>
       <header>
         <div className="logo">
+          <span className="dot" />
           Gestor de Grupos <b>HX</b>
         </div>
         <div className="row">
-          <span className="mut">{session.user.email}</span>
+          <span className="mut" style={{ fontSize: 13 }}>
+            {session.user.email}
+          </span>
           <button className="btn ghost sm" onClick={() => sb.auth.signOut()}>
-            Sair
+            <LogOut size={15} /> Sair
           </button>
         </div>
       </header>
       <nav>
         {TABS.map((t) => (
           <button key={t.id} className={'tab' + (view === t.id ? ' on' : '')} onClick={() => setView(t.id)}>
-            {t.label}
+            <t.Icon /> {t.label}
           </button>
         ))}
       </nav>
