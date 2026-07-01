@@ -99,8 +99,8 @@ export type NovoDisparo = {
   subjects: Record<string, string | null>
 }
 
-// cria o disparo + itens e chama o motor. Retorna o id do disparo.
-export async function criarEDisparar(d: NovoDisparo): Promise<number> {
+// cria o disparo + itens e chama o motor. Retorna o id + se o motor confirmou o start.
+export async function criarEDisparar(d: NovoDisparo): Promise<{ id: number; started: boolean }> {
   const { data: disp, error: e1 } = await sb
     .from(T.disparos)
     .insert({
@@ -129,8 +129,16 @@ export async function criarEDisparar(d: NovoDisparo): Promise<number> {
   const { error: e2 } = await sb.from(T.disparoItens).insert(itens)
   if (e2) throw e2
 
-  await chamarMotor(dispId)
-  return dispId
+  // checa se o motor confirmou o start (o motor tem claim atômico → clicar "Iniciar"
+  // depois não duplica; mas avisamos se não iniciou pra o operador saber).
+  let started = false
+  try {
+    const resp = await chamarMotor(dispId)
+    started = resp.ok
+  } catch {
+    started = false
+  }
+  return { id: dispId, started }
 }
 
 // cria o disparo AGENDADO (status=agendado + scheduled_at) sem chamar o motor.

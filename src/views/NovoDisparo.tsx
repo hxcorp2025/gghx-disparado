@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ViewId } from '../App'
 import { useApp } from '../state'
 import { listCampanhas, uploadMidia, criarEDisparar, agendarDisparo } from '../lib/db'
+import { FEATURES } from '../lib/config'
 import { toast } from '../lib/toast'
 import { PreviewWhatsApp } from '../components/PreviewWhatsApp'
 import type { Campanha, MediaTipo, MencaoTipo } from '../lib/types'
@@ -57,7 +58,12 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
     return m
   }, [grupos])
 
-  const semLista = groupIds.filter((g) => grupos.find((x) => x.group_id === g)?.participantes == null).length
+  // conta só grupos CONHECIDOS (na lista carregada) sem participantes lidos.
+  // grupos não-carregados o motor resolve na hora (lê metadata) — não pré-conta como pulado.
+  const semLista = groupIds.filter((g) => {
+    const gr = grupos.find((x) => x.group_id === g)
+    return !!gr && gr.participantes == null
+  }).length
   const nomeCampanha = campanhas.find((c) => c.id === campanhaId)?.nome
   const nomeConta = CONTAS.find((c) => c.id === conta)?.nome
   const riscoBan = intervalo < 15
@@ -124,8 +130,12 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
     if (!confirm(`Disparar para ${groupIds.length} grupo(s) pela conta ${conta}? Vai enviar mensagem de verdade.`)) return
     setFiring(true)
     try {
-      const id = await criarEDisparar(payload)
-      toast(`Disparo #${id} iniciado!`)
+      const { id, started } = await criarEDisparar(payload)
+      if (started) {
+        toast(`Disparo #${id} iniciado!`)
+      } else {
+        toast(`Disparo #${id} criado, mas o motor não respondeu. Use "Iniciar" na aba Disparos.`, true)
+      }
       goTo('disparos')
     } catch (e) {
       toast('Erro: ' + (e as Error).message, true)
@@ -263,13 +273,24 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
               </div>
               <div className="field">
                 <label>Intervalo entre grupos (s)</label>
-                <input type="number" min={5} max={180} value={intervalo} onChange={(e) => setIntervalo(+e.target.value)} />
+                <input
+                  type="number"
+                  min={5}
+                  max={180}
+                  value={intervalo}
+                  onChange={(e) => setIntervalo(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                />
               </div>
             </div>
             <div className="grid2">
               <div className="field">
                 <label>Jitter aleatório (s, anti-ban)</label>
-                <input type="number" min={0} value={jitter} onChange={(e) => setJitter(+e.target.value)} />
+                <input
+                  type="number"
+                  min={0}
+                  value={jitter}
+                  onChange={(e) => setJitter(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                />
               </div>
               <div />
             </div>
@@ -325,7 +346,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
               </tbody>
             </table>
 
-            <div className="field" style={{ marginTop: 16 }}>
+            <div className="field" style={{ marginTop: 16 }} hidden={!FEATURES.agendamento}>
               <label>
                 <input
                   type="checkbox"

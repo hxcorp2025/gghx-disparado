@@ -24,15 +24,21 @@ export function Estatisticas() {
   const pessoas = grupos.reduce((n, g) => n + (g.participantes || 0), 0)
   const saldo = mov.entradas - mov.saidas
 
-  // disparos por dia (BR)
+  // disparos por dia (BR), ordenado do mais recente pro mais antigo
   const porDia = useMemo(() => {
-    const m: Record<string, number> = {}
+    const m: Record<string, { n: number; ts: number }> = {}
     disparos.forEach((d) => {
       if (!d.criado_em) return
-      const dia = new Date(d.criado_em).toLocaleDateString('pt-BR')
-      m[dia] = (m[dia] || 0) + 1
+      const date = new Date(d.criado_em)
+      const dia = date.toLocaleDateString('pt-BR')
+      if (!m[dia]) m[dia] = { n: 0, ts: date.getTime() }
+      m[dia].n++
+      m[dia].ts = Math.max(m[dia].ts, date.getTime())
     })
-    return Object.entries(m).slice(0, 14)
+    return Object.entries(m)
+      .sort((a, b) => b[1].ts - a[1].ts)
+      .slice(0, 14)
+      .map(([dia, v]) => [dia, v.n] as [string, number])
   }, [disparos])
 
   return (

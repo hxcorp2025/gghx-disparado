@@ -13,3 +13,9 @@ export const CONFIG = {
 } as const
 
 export const MEDIA_BUCKET = 'gghx-midia'
+
+// Flags de feature. Ligar quando o backend correspondente estiver no ar.
+export const FEATURES = {
+  // Agendamento: só ligar depois da coluna scheduled_at + poller n8n (HX-gghx-agendador) prontos.
+  agendamento: false,
+} as const

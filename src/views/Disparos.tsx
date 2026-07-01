@@ -28,6 +28,7 @@ export function Disparos() {
   const [itens, setItens] = useState<DisparoItem[]>([])
   const [metrics, setMetrics] = useState<DisparoMetrics | null>(null)
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abrirSeq = useRef(0)
 
   const reload = useCallback(async () => {
     try {
@@ -50,10 +51,16 @@ export function Disparos() {
   }, [reload])
 
   async function abrir(id: number) {
+    const seq = ++abrirSeq.current
     setAbertoId(id)
     setMetrics(null)
-    setItens(await getDisparoItens(id))
-    getDisparoMetrics(id).then(setMetrics).catch(() => {})
+    setItens([])
+    const its = await getDisparoItens(id)
+    if (seq !== abrirSeq.current) return // chegou resposta de um clique antigo → ignora
+    setItens(its)
+    getDisparoMetrics(id)
+      .then((m) => seq === abrirSeq.current && setMetrics(m))
+      .catch(() => {})
   }
 
   async function pausar(id: number) {
@@ -78,6 +85,11 @@ export function Disparos() {
     setTimeout(reload, 3000)
   }
   async function reenviar(id: number, de: 'falha' | 'pulado') {
+    const msg =
+      de === 'pulado'
+        ? 'Reenviar nos grupos PULADOS? Eles foram pulados por estarem sem lista lida (menção fantasma). Se ainda estiverem sem lista, o motor pula de novo (não força @all).'
+        : 'Reenviar só nos grupos que FALHARAM? Vai tentar de novo o envio neles.'
+    if (!confirm(msg)) return
     const r = await reenviarItens(id, de).catch(() => null)
     toast(r && r.ok ? `Reenvio dos ${de} iniciado` : 'Falha', !(r && r.ok))
     setTimeout(() => {
