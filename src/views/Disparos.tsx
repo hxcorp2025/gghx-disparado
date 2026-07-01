@@ -1,0 +1,191 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  listDisparos,
+  getDisparoItens,
+  setDisparoStatus,
+  retomarDisparo,
+  reenviarItens,
+  chamarMotor,
+} from '../lib/db'
+import { toast } from '../lib/toast'
+import type { Disparo, DisparoItem } from '../lib/types'
+
+function dur(ini: string | null, fim: string | null): string {
+  if (!ini) return '—'
+  const a = new Date(ini).getTime()
+  const b = (fim ? new Date(fim) : new Date()).getTime()
+  const s = Math.max(0, Math.round((b - a) / 1000))
+  const m = Math.floor(s / 60)
+  return m > 0 ? `${m}min ${s % 60}s` : `${s}s`
+}
+
+export function Disparos() {
+  const [lista, setLista] = useState<Disparo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [abertoId, setAbertoId] = useState<number | null>(null)
+  const [itens, setItens] = useState<DisparoItem[]>([])
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const reload = useCallback(async () => {
+    try {
+      const d = await listDisparos()
+      setLista(d)
+      if (pollRef.current) clearTimeout(pollRef.current)
+      if (d.some((c) => c.status === 'rodando')) pollRef.current = setTimeout(reload, 5000)
+    } catch (e) {
+      toast('Erro: ' + (e as Error).message, true)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    reload()
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current)
+    }
+  }, [reload])
+
+  async function abrir(id: number) {
+    setAbertoId(id)
+    setItens(await getDisparoItens(id))
+  }
+
+  async function pausar(id: number) {
+    await setDisparoStatus(id, 'pausada')
+    toast('Disparo pausado (o motor para no próximo grupo).')
+    reload()
+  }
+  async function despausar(id: number) {
+    const r = await retomarDisparo(id).catch(() => null)
+    toast(r && r.ok ? 'Retomado' : 'Falha ao retomar', !(r && r.ok))
+    setTimeout(reload, 3000)
+  }
+  async function cancelar(id: number) {
+    if (!confirm('Cancelar este disparo? Os grupos ainda não enviados NÃO recebem.')) return
+    await setDisparoStatus(id, 'cancelada')
+    toast('Disparo cancelado')
+    reload()
+  }
+  async function retomarDraft(id: number) {
+    const r = await chamarMotor(id).catch(() => null)
+    toast(r && r.ok ? 'Iniciado' : 'Falha', !(r && r.ok))
+    setTimeout(reload, 3000)
+  }
+  async function reenviar(id: number, de: 'falha' | 'pulado') {
+    const r = await reenviarItens(id, de).catch(() => null)
+    toast(r && r.ok ? `Reenvio dos ${de} iniciado` : 'Falha', !(r && r.ok))
+    setTimeout(() => {
+      reload()
+      abrir(id)
+    }, 3000)
+  }
+
+  const falhas = itens.filter((i) => i.status === 'falha').length
+  const pulados = itens.filter((i) => i.status === 'pulado').length
+
+  return (
+    <section>
+      <div className="toolbar between">
+        <h2 style={{ margin: 0 }}>Disparos</h2>
+        <button className="btn ghost sm" onClick={reload}>
+          Atualizar
+        </button>
+      </div>
+
+      {loading && <p className="mut">Carregando...</p>}
+      {!loading && !lista.length && <p className="mut">Nenhum disparo ainda.</p>}
+
+      {lista.map((c) => {
+        const rodando = c.status === 'rodando'
+        const pausada = c.status === 'pausada'
+        return (
+          <div className="listrow" key={c.id}>
+            <div>
+              <b>
+                #{c.id} {c.nome || '(sem nome)'}
+              </b>{' '}
+              <span className={'badge b-' + c.status}>{c.status}</span>
+              <div className="mut">
+                {c.enviados || 0}/{c.total || 0} enviados
+                {c.falhas ? ` · ${c.falhas} falhas` : ''} ·{' '}
+                {c.criado_em ? new Date(c.criado_em).toLocaleString('pt-BR') : ''} · {dur(c.iniciado_em, c.concluido_em)}
+              </div>
+            </div>
+            <div className="row">
+              {rodando && (
+                <button className="btn ghost sm" onClick={() => pausar(c.id)}>
+                  Pausar
+                </button>
+              )}
+              {pausada && (
+                <button className="btn sm" onClick={() => despausar(c.id)}>
+                  Despausar
+                </button>
+              )}
+              {(c.status === 'rascunho' || c.status === 'erro') && (
+                <button className="btn sm" onClick={() => retomarDraft(c.id)}>
+                  Iniciar
+                </button>
+              )}
+              {c.status !== 'concluida' && c.status !== 'cancelada' && (
+                <button className="btn ghost sm" onClick={() => cancelar(c.id)}>
+                  Cancelar
+                </button>
+              )}
+              <button className="btn ghost sm" onClick={() => abrir(c.id)}>
+                Ver grupos
+              </button>
+            </div>
+          </div>
+        )
+      })}
+
+      {abertoId != null && (
+        <div className="card" style={{ marginTop: 18 }}>
+          <div className="row between" style={{ marginBottom: 6 }}>
+            <h2 style={{ margin: 0 }}>Disparo #{abertoId} — grupos</h2>
+            <div className="row" style={{ gap: 6 }}>
+              {falhas > 0 && (
+                <button className="btn sm" onClick={() => reenviar(abertoId, 'falha')}>
+                  Reenviar falhas ({falhas})
+                </button>
+              )}
+              {pulados > 0 && (
+                <button className="btn sm" onClick={() => reenviar(abertoId, 'pulado')}>
+                  Reenviar pulados ({pulados})
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Grupo</th>
+                  <th style={{ width: 110 }}>Status</th>
+                  <th style={{ width: 170 }}>Enviado / motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itens.map((it) => (
+                  <tr key={it.id}>
+                    <td>{it.subject || it.group_id}</td>
+                    <td className={'st-' + it.status}>{it.status}</td>
+                    <td className="mut">
+                      {it.enviado_em
+                        ? new Date(it.enviado_em).toLocaleTimeString('pt-BR')
+                        : it.erro
+                          ? it.erro.slice(0, 40)
+                          : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
