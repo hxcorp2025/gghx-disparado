@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   listDisparos,
   getDisparoItens,
+  getDisparoMetrics,
   setDisparoStatus,
   retomarDisparo,
   reenviarItens,
   chamarMotor,
 } from '../lib/db'
+import type { DisparoMetrics } from '../lib/db'
 import { toast } from '../lib/toast'
 import type { Disparo, DisparoItem } from '../lib/types'
 
@@ -24,6 +26,7 @@ export function Disparos() {
   const [loading, setLoading] = useState(true)
   const [abertoId, setAbertoId] = useState<number | null>(null)
   const [itens, setItens] = useState<DisparoItem[]>([])
+  const [metrics, setMetrics] = useState<DisparoMetrics | null>(null)
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const reload = useCallback(async () => {
@@ -48,7 +51,9 @@ export function Disparos() {
 
   async function abrir(id: number) {
     setAbertoId(id)
+    setMetrics(null)
     setItens(await getDisparoItens(id))
+    getDisparoMetrics(id).then(setMetrics).catch(() => {})
   }
 
   async function pausar(id: number) {
@@ -158,6 +163,42 @@ export function Disparos() {
               )}
             </div>
           </div>
+
+          {metrics && (
+            <div className="statcards" style={{ marginBottom: 14 }}>
+              <div className="statcard">
+                <div className="lbl">Enviadas</div>
+                <div className="val">{metrics.enviadas}</div>
+                <div className="sub">mensagens no grupo</div>
+              </div>
+              <div className="statcard sc-in">
+                <div className="lbl">Entregues</div>
+                <div className="val" style={{ color: 'var(--accent)' }}>
+                  {metrics.entregues}
+                </div>
+                <div className="sub">
+                  {metrics.enviadas ? Math.round((metrics.entregues / metrics.enviadas) * 100) : 0}%
+                </div>
+              </div>
+              <div className="statcard sc-pessoas">
+                <div className="lbl">Lidas</div>
+                <div className="val" style={{ color: 'var(--blue)' }}>
+                  {metrics.lidas}
+                </div>
+                <div className="sub">
+                  piso ·{' '}
+                  {metrics.enviadas ? Math.round((metrics.lidas / metrics.enviadas) * 100) : 0}%
+                </div>
+              </div>
+            </div>
+          )}
+          {metrics && (
+            <p className="mut" style={{ marginTop: 0, fontSize: 12 }}>
+              Em grupo, "entregue/lido" é agregado (o WhatsApp não dá leitura por pessoa) e "lido" é um
+              piso — quem desliga o tique azul lê e não conta.
+            </p>
+          )}
+
           <div className="scroll">
             <table>
               <thead>

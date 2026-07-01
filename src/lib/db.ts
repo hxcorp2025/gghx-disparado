@@ -142,6 +142,25 @@ export async function chamarMotor(disparoId: number): Promise<Response> {
   })
 }
 
+// ===== métricas agregadas de um disparo (grupo: entregue/lido é agregado, "lido" é um piso) =====
+export type DisparoMetrics = { enviadas: number; entregues: number; lidas: number }
+
+export async function getDisparoMetrics(disparoId: number): Promise<DisparoMetrics> {
+  // gghx_mensagens.campanha_id é TEXT; o motor grava String(campId)
+  const { data, error } = await sb
+    .from('gghx_mensagens')
+    .select('status_atual,delivered_at,read_at')
+    .eq('campanha_id', String(disparoId))
+    .limit(20000)
+  if (error) throw error
+  const rows = data ?? []
+  return {
+    enviadas: rows.length,
+    entregues: rows.filter((r: { delivered_at: string | null }) => r.delivered_at != null).length,
+    lidas: rows.filter((r: { read_at: string | null }) => r.read_at != null).length,
+  }
+}
+
 // ===== controle de disparo (pausar / cancelar / retomar / reenviar) =====
 export async function setDisparoStatus(disparoId: number, status: string): Promise<void> {
   const { error } = await sb.from(T.disparos).update({ status }).eq('id', disparoId)
