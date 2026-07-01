@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react'
+import { Users } from 'lucide-react'
 import { useApp } from '../state'
 import { syncGrupos, createCampanha } from '../lib/db'
 import { toast } from '../lib/toast'
+import { SkeletonList, SkeletonCards } from '../components/Skeleton'
+import { Empty } from '../components/Empty'
 import type { Grupo } from '../lib/types'
 
 type Filtro = 'avisos' | 'todos'
 
 export function Grupos() {
-  const { grupos, reloadGrupos, selected, toggle, setSelected } = useApp()
+  const { grupos, loadingGrupos, reloadGrupos, selected, toggle, setSelected } = useApp()
   const [q, setQ] = useState('')
   const [filtro, setFiltro] = useState<Filtro>('avisos')
   const [syncing, setSyncing] = useState(false)
@@ -63,6 +66,15 @@ export function Grupos() {
       <span className="gtag gtag-com">Comunidade</span>
     ) : (
       <span className="gtag gtag-grp">Grupo</span>
+    )
+  }
+
+  if (loadingGrupos && !grupos.length) {
+    return (
+      <section>
+        <SkeletonCards n={2} />
+        <SkeletonList rows={7} />
+      </section>
     )
   }
 
@@ -141,11 +153,15 @@ export function Grupos() {
         </table>
       </div>
       {!visiveis.length && (
-        <p className="mut" style={{ marginTop: 12 }}>
-          {filtro === 'avisos'
-            ? 'Nenhum grupo de avisos identificado ainda. Clique "Sincronizar grupos" ou troque pra "Todos os grupos".'
-            : 'Nenhum grupo ainda. Clique em "Sincronizar grupos".'}
-        </p>
+        <Empty
+          Icon={Users}
+          title={filtro === 'avisos' ? 'Nenhum grupo de avisos ainda' : 'Nenhum grupo ainda'}
+          sub={
+            filtro === 'avisos'
+              ? 'Clique em "Sincronizar grupos" para importar, ou troque para "Todos os grupos".'
+              : 'Clique em "Sincronizar grupos" para importar os grupos do número conectado.'
+          }
+        />
       )}
     </section>
   )

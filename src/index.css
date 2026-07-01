@@ -204,6 +204,12 @@ input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); c
 .wa-bubble a { color: #7ecbf2; }
 .wa-bubble code { background: rgba(0, 0, 0, 0.25); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
 
+/* ---------- empty state ---------- */
+.empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 44px 24px; }
+.empty-ico { width: 52px; height: 52px; border-radius: 13px; background: var(--surface2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--mut); margin-bottom: 15px; }
+.empty-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.empty-sub { font-size: 13px; color: var(--mut); margin-top: 6px; max-width: 380px; line-height: 1.5; }
+
 /* ---------- login ---------- */
 #login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--bg); }
 #login .box { width: 100%; max-width: 372px; box-shadow: var(--sh-float); }

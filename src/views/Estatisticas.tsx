@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { getMovimentosResumo, listAvisos, listDisparos } from '../lib/db'
+import { SkeletonCards } from '../components/Skeleton'
 import type { Aviso } from '../lib/db'
 import type { Disparo } from '../lib/types'
 
 export function Estatisticas() {
-  const { grupos } = useApp()
+  const { grupos, loadingGrupos } = useApp()
   const [mov, setMov] = useState({ entradas: 0, saidas: 0 })
   const [avisos, setAvisos] = useState<Aviso[]>([])
   const [disparos, setDisparos] = useState<Disparo[]>([])
@@ -41,9 +42,21 @@ export function Estatisticas() {
       .map(([dia, v]) => [dia, v.n] as [string, number])
   }, [disparos])
 
+  if (loadingGrupos && !grupos.length) {
+    return (
+      <section>
+        <SkeletonCards n={5} />
+        <div className="grid2">
+          <div className="skel" style={{ height: 220, borderRadius: 'var(--r-card)' }} />
+          <div className="skel" style={{ height: 220, borderRadius: 'var(--r-card)' }} />
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section>
-      <h2>Estatísticas</h2>
+      <h2 style={{ marginBottom: 14 }}>Visão geral</h2>
 
       <div className="statcards" style={{ marginTop: 12 }}>
         <div className="statcard">

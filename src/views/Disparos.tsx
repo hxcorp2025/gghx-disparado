@@ -9,7 +9,10 @@ import {
   chamarMotor,
 } from '../lib/db'
 import type { DisparoMetrics } from '../lib/db'
+import { Radio } from 'lucide-react'
 import { toast } from '../lib/toast'
+import { SkeletonList } from '../components/Skeleton'
+import { Empty } from '../components/Empty'
 import type { Disparo, DisparoItem } from '../lib/types'
 
 function dur(ini: string | null, fim: string | null): string {
@@ -110,8 +113,10 @@ export function Disparos() {
         </button>
       </div>
 
-      {loading && <p className="mut">Carregando...</p>}
-      {!loading && !lista.length && <p className="mut">Nenhum disparo ainda.</p>}
+      {loading && <SkeletonList rows={5} height={62} />}
+      {!loading && !lista.length && (
+        <Empty Icon={Radio} title="Nenhum disparo ainda" sub="Crie um disparo na aba Novo disparo. Ele aparece aqui com o acompanhamento em tempo real." />
+      )}
 
       {lista.map((c) => {
         const rodando = c.status === 'rodando'

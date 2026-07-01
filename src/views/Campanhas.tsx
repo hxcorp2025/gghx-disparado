@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
+import { FolderOpen } from 'lucide-react'
 import type { ViewId } from '../App'
 import { useApp } from '../state'
 import { listCampanhas, deleteCampanha, updateCampanha } from '../lib/db'
 import { toast } from '../lib/toast'
+import { SkeletonList } from '../components/Skeleton'
+import { Empty } from '../components/Empty'
 import type { Campanha } from '../lib/types'
 
 export function Campanhas({ goTo }: { goTo: (v: ViewId) => void }) {
@@ -71,8 +74,14 @@ export function Campanhas({ goTo }: { goTo: (v: ViewId) => void }) {
         </button>
       </div>
 
-      {loading && <p className="mut">Carregando...</p>}
-      {!loading && !lista.length && <p className="mut">Nenhuma campanha salva ainda.</p>}
+      {loading && <SkeletonList rows={4} height={60} />}
+      {!loading && !lista.length && (
+        <Empty
+          Icon={FolderOpen}
+          title="Nenhuma campanha salva"
+          sub='Selecione grupos na aba Grupos e clique em "Salvar como campanha" para reutilizar a lista nos disparos.'
+        />
+      )}
 
       {lista.map((c) => (
         <div key={c.id}>
