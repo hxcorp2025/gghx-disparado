@@ -133,6 +133,39 @@ export async function criarEDisparar(d: NovoDisparo): Promise<number> {
   return dispId
 }
 
+// cria o disparo AGENDADO (status=agendado + scheduled_at) sem chamar o motor.
+// O poller n8n (HX-gghx-agendador) inicia quando scheduled_at <= now(). Retorna o id.
+export async function agendarDisparo(d: NovoDisparo, scheduledAtISO: string): Promise<number> {
+  const { data: disp, error: e1 } = await sb
+    .from(T.disparos)
+    .insert({
+      nome: d.nome,
+      mensagem: d.mensagem,
+      tipo_mencao: d.tipo_mencao,
+      intervalo_seg: Math.min(180, Math.max(5, d.intervalo_seg || 60)),
+      jitter_seg: Math.min(60, Math.max(0, d.jitter_seg || 0)),
+      media_tipo: d.media_tipo,
+      media_url: d.media_tipo === 'texto' ? null : d.media_url,
+      status: 'agendado',
+      scheduled_at: scheduledAtISO,
+      total: d.group_ids.length,
+    })
+    .select('id')
+    .single()
+  if (e1) throw e1
+  const dispId = (disp as { id: number }).id
+  const itens = d.group_ids.map((g, i) => ({
+    campanha_id: dispId,
+    group_id: g,
+    subject: d.subjects[g] ?? null,
+    ordem: i + 1,
+    status: 'pendente',
+  }))
+  const { error: e2 } = await sb.from(T.disparoItens).insert(itens)
+  if (e2) throw e2
+  return dispId
+}
+
 export async function chamarMotor(disparoId: number): Promise<Response> {
   const t = await token()
   return fetch(CONFIG.N8N_DISPARAR, {

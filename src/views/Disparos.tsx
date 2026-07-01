@@ -112,9 +112,16 @@ export function Disparos() {
               </b>{' '}
               <span className={'badge b-' + c.status}>{c.status}</span>
               <div className="mut">
-                {c.enviados || 0}/{c.total || 0} enviados
-                {c.falhas ? ` · ${c.falhas} falhas` : ''} ·{' '}
-                {c.criado_em ? new Date(c.criado_em).toLocaleString('pt-BR') : ''} · {dur(c.iniciado_em, c.concluido_em)}
+                {c.status === 'agendado' && c.scheduled_at ? (
+                  <>📅 agendado para {new Date(c.scheduled_at).toLocaleString('pt-BR')} · {c.total || 0} grupos</>
+                ) : (
+                  <>
+                    {c.enviados || 0}/{c.total || 0} enviados
+                    {c.falhas ? ` · ${c.falhas} falhas` : ''} ·{' '}
+                    {c.criado_em ? new Date(c.criado_em).toLocaleString('pt-BR') : ''} ·{' '}
+                    {dur(c.iniciado_em, c.concluido_em)}
+                  </>
+                )}
               </div>
             </div>
             <div className="row">

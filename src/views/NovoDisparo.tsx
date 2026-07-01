@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ViewId } from '../App'
 import { useApp } from '../state'
-import { listCampanhas, uploadMidia, criarEDisparar } from '../lib/db'
+import { listCampanhas, uploadMidia, criarEDisparar, agendarDisparo } from '../lib/db'
 import { toast } from '../lib/toast'
 import { PreviewWhatsApp } from '../components/PreviewWhatsApp'
 import type { Campanha, MediaTipo, MencaoTipo } from '../lib/types'
@@ -38,6 +38,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
 
   // etapa 4
   const [agendar, setAgendar] = useState(false)
+  const [agendarData, setAgendarData] = useState('') // datetime-local (hora local)
   const [firing, setFiring] = useState(false)
 
   useEffect(() => {
@@ -88,24 +89,42 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
   }
 
   async function disparar() {
+    const payload = {
+      nome: nome.trim() || null,
+      mensagem: mensagem.trim(),
+      tipo_mencao: tipoMencao,
+      intervalo_seg: intervalo,
+      jitter_seg: jitter,
+      media_tipo: mediaTipo,
+      media_url: mediaUrl,
+      group_ids: groupIds,
+      subjects,
+    }
+
     if (agendar) {
-      toast('Agendamento entra na Fase 2 (precisa do poller no n8n). Por ora, dispare na hora.', true)
+      if (!agendarData) return toast('Escolha a data e hora do agendamento', true)
+      const quando = new Date(agendarData)
+      if (isNaN(quando.getTime()) || quando.getTime() <= Date.now()) {
+        return toast('A data do agendamento tem que ser no futuro', true)
+      }
+      if (!confirm(`Agendar disparo para ${groupIds.length} grupo(s) em ${quando.toLocaleString('pt-BR')}?`)) return
+      setFiring(true)
+      try {
+        const id = await agendarDisparo(payload, quando.toISOString())
+        toast(`Disparo #${id} agendado para ${quando.toLocaleString('pt-BR')}`)
+        goTo('disparos')
+      } catch (e) {
+        toast('Erro: ' + (e as Error).message, true)
+      } finally {
+        setFiring(false)
+      }
       return
     }
+
     if (!confirm(`Disparar para ${groupIds.length} grupo(s) pela conta ${conta}? Vai enviar mensagem de verdade.`)) return
     setFiring(true)
     try {
-      const id = await criarEDisparar({
-        nome: nome.trim() || null,
-        mensagem: mensagem.trim(),
-        tipo_mencao: tipoMencao,
-        intervalo_seg: intervalo,
-        jitter_seg: jitter,
-        media_tipo: mediaTipo,
-        media_url: mediaUrl,
-        group_ids: groupIds,
-        subjects,
-      })
+      const id = await criarEDisparar(payload)
       toast(`Disparo #${id} iniciado!`)
       goTo('disparos')
     } catch (e) {
@@ -317,9 +336,18 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
                 Agendar (em vez de disparar agora)
               </label>
               {agendar && (
-                <p className="mut" style={{ color: 'var(--amber)' }}>
-                  Agendamento entra na Fase 2 (precisa do poller no n8n + coluna scheduled_at). Por ora, desmarque e dispare na hora.
-                </p>
+                <div style={{ marginTop: 10 }}>
+                  <input
+                    type="datetime-local"
+                    value={agendarData}
+                    onChange={(e) => setAgendarData(e.target.value)}
+                    style={{ maxWidth: 260 }}
+                  />
+                  <p className="mut" style={{ marginBottom: 0 }}>
+                    O disparo fica salvo como <b>agendado</b> e inicia sozinho na hora marcada (o motor
+                    respeita o intervalo/jitter a partir daí).
+                  </p>
+                </div>
               )}
             </div>
 
@@ -328,7 +356,13 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
             </div>
 
             <button className="btn" style={{ width: '100%' }} disabled={firing} onClick={disparar}>
-              {firing ? <span className="spin" /> : `Disparar para ${groupIds.length} grupo(s)`}
+              {firing ? (
+                <span className="spin" />
+              ) : agendar ? (
+                `Agendar disparo para ${groupIds.length} grupo(s)`
+              ) : (
+                `Disparar para ${groupIds.length} grupo(s)`
+              )}
             </button>
           </>
         )}

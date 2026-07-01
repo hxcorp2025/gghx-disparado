@@ -54,6 +54,7 @@ export type Disparo = {
   criado_em: string | null
   iniciado_em: string | null
   concluido_em: string | null
+  scheduled_at: string | null
   media_tipo: MediaTipo | null
   media_url: string | null
 }
