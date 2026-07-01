@@ -1,14 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { onToast } from '../lib/toast'
 
 export function Toast() {
   const [msg, setMsg] = useState<{ text: string; err?: boolean } | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    return onToast((t) => {
+    const off = onToast((t) => {
       setMsg(t)
-      const id = setTimeout(() => setMsg(null), 3200)
-      return () => clearTimeout(id)
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = setTimeout(() => setMsg(null), 3200)
     })
+    return () => {
+      off()
+      if (timer.current) clearTimeout(timer.current)
+    }
   }, [])
   if (!msg) return null
   return <div className={'toast' + (msg.err ? ' err' : '')}>{msg.text}</div>
