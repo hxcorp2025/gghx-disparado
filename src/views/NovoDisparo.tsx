@@ -5,6 +5,7 @@ import { listCampanhas, uploadMidia, criarEDisparar, agendarDisparo, listContas 
 import { FEATURES } from '../lib/config'
 import { toast } from '../lib/toast'
 import { PreviewWhatsApp } from '../components/PreviewWhatsApp'
+import { spin, countVariations, hasSpintax } from '../lib/spintax'
 import type { Campanha, Conta, MediaTipo, MencaoTipo } from '../lib/types'
 
 const STEPS = ['Campanha', 'Número', 'Configurar', 'Confirmar']
@@ -62,6 +63,11 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
 
   // conta só grupos CONHECIDOS (na lista carregada) sem participantes lidos.
   // grupos não-carregados o motor resolve na hora (lê metadata) — não pré-conta como pulado.
+  // spintax: amostra + contagem de variações (recomputa só quando a mensagem muda)
+  const spinPreview = useMemo(() => spin(mensagem.replace(/\[grupo\]/g, 'Nome do Grupo')), [mensagem])
+  const nVar = useMemo(() => countVariations(mensagem), [mensagem])
+  const temSpin = hasSpintax(mensagem)
+
   const semLista = groupIds.filter((g) => {
     const gr = grupos.find((x) => x.group_id === g)
     return !!gr && gr.participantes == null
@@ -259,13 +265,27 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
                 rows={5}
                 value={mensagem}
                 onChange={(e) => setMensagem(e.target.value)}
-                placeholder="Escreva a mensagem... (*negrito*, _itálico_, ~tachado~)"
+                placeholder="Escreva a mensagem... (*negrito*, _itálico_, ~tachado~ · spintax {oi|olá|e aí} · variável [grupo])"
               />
+              <p className="mut" style={{ marginBottom: 0, marginTop: 7, fontSize: 12 }}>
+                {temSpin ? (
+                  <>
+                    🎲 <b style={{ color: 'var(--accent)' }}>{nVar.toLocaleString('pt-BR')}</b> variações · cada
+                    grupo recebe uma diferente (anti-ban). Use <code>{'{a|b|c}'}</code> pra variar e{' '}
+                    <code>[grupo]</code> pro nome do grupo.
+                  </>
+                ) : (
+                  <>
+                    Dica anti-ban: use spintax <code>{'{oi|olá|e aí}'}</code> pra cada grupo receber uma
+                    mensagem diferente. <code>[grupo]</code> vira o nome do grupo.
+                  </>
+                )}
+              </p>
             </div>
 
             <div className="field">
-              <label>Pré-visualização (como fica no WhatsApp)</label>
-              <PreviewWhatsApp texto={mensagem} mediaTipo={mediaTipo} />
+              <label>Pré-visualização {temSpin && <span className="mut">(uma amostra aleatória)</span>}</label>
+              <PreviewWhatsApp texto={spinPreview} mediaTipo={mediaTipo} />
             </div>
 
             <div className="grid2">
@@ -379,7 +399,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <PreviewWhatsApp texto={mensagem} mediaTipo={mediaTipo} />
+              <PreviewWhatsApp texto={spinPreview} mediaTipo={mediaTipo} />
             </div>
 
             <button className="btn" style={{ width: '100%' }} disabled={firing} onClick={disparar}>
