@@ -210,6 +210,21 @@ input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); c
 .empty-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
 .empty-sub { font-size: 13px; color: var(--mut); margin-top: 6px; max-width: 380px; line-height: 1.5; }
 
+/* ---------- command palette (⌘K) ---------- */
+.cmdk-overlay { position: fixed; inset: 0; z-index: 80; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center; padding-top: 14vh; animation: fadein 0.14s var(--ease, ease); }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.cmdk-box { width: 100%; max-width: 560px; background: var(--overlay); border: 1px solid var(--line2); border-radius: 14px; box-shadow: var(--sh-float); overflow: hidden; animation: rise 0.16s ease; }
+[cmdk-input] { width: 100%; border: none; border-bottom: 1px solid var(--line); background: transparent; padding: 16px 18px; font-size: 15px; color: var(--txt); border-radius: 0; }
+[cmdk-input]:focus { outline: none; box-shadow: none; border-bottom-color: var(--line); }
+[cmdk-list] { max-height: 340px; overflow: auto; padding: 8px; }
+[cmdk-group-heading] { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mut2); font-weight: 600; padding: 10px 10px 6px; }
+[cmdk-item] { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 8px; font-size: 14px; color: var(--txt); cursor: pointer; }
+[cmdk-item] svg { color: var(--mut); }
+[cmdk-item][data-selected='true'] { background: var(--accent-tint); color: var(--accent); }
+[cmdk-item][data-selected='true'] svg { color: var(--accent); }
+[cmdk-empty] { padding: 20px; text-align: center; color: var(--mut); font-size: 13px; }
+.kbd { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; color: var(--mut); background: var(--surface2); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; }
+
 /* ---------- login ---------- */
 #login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--bg); }
 #login .box { width: 100%; max-width: 372px; box-shadow: var(--sh-float); }

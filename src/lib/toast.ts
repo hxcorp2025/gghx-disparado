@@ -1,16 +1,7 @@
-// Toast global minimalista (pub/sub)
-type ToastMsg = { text: string; err?: boolean; id: number }
-type Listener = (t: ToastMsg) => void
+import { toast as sonner } from 'sonner'
 
-let seq = 0
-const listeners = new Set<Listener>()
-
+// mantém a API antiga toast(text, err) — agora renderizado pelo Sonner
 export function toast(text: string, err = false) {
-  const msg = { text, err, id: ++seq }
-  listeners.forEach((l) => l(msg))
-}
-
-export function onToast(l: Listener): () => void {
-  listeners.add(l)
-  return () => listeners.delete(l)
+  if (err) sonner.error(text)
+  else sonner.success(text)
 }

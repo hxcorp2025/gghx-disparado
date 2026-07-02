@@ -6,6 +6,7 @@ import { identifyUser, resetAnalytics } from './lib/analytics'
 import { AppProvider } from './state'
 import { Login } from './components/Login'
 import { Toast } from './components/Toast'
+import { CommandPalette } from './components/CommandPalette'
 import { Estatisticas } from './views/Estatisticas'
 import { Grupos } from './views/Grupos'
 import { Campanhas } from './views/Campanhas'
@@ -92,11 +93,12 @@ export default function App() {
         </aside>
 
         <div className="content">
-          <div className="topbar">
+          <div className="topbar" style={{ justifyContent: 'space-between' }}>
             <div className="topbar-title">
               <current.Icon size={18} />
               {current.label}
             </div>
+            <span className="kbd" title="Abrir comandos">⌘K</span>
           </div>
           <main>
             {view === 'estatisticas' && <Estatisticas />}
@@ -109,6 +111,13 @@ export default function App() {
         </div>
       </div>
       <Toast />
+      <CommandPalette
+        onNavigate={setView}
+        onLogout={() => {
+          resetAnalytics()
+          sb.auth.signOut()
+        }}
+      />
     </AppProvider>
   )
 }

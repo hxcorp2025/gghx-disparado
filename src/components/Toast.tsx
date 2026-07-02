@@ -1,20 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
-import { onToast } from '../lib/toast'
+import { Toaster as SonnerToaster } from 'sonner'
 
+// Toaster do Sonner com tema dark alinhado ao nosso design system.
 export function Toast() {
-  const [msg, setMsg] = useState<{ text: string; err?: boolean } | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    const off = onToast((t) => {
-      setMsg(t)
-      if (timer.current) clearTimeout(timer.current)
-      timer.current = setTimeout(() => setMsg(null), 3200)
-    })
-    return () => {
-      off()
-      if (timer.current) clearTimeout(timer.current)
-    }
-  }, [])
-  if (!msg) return null
-  return <div className={'toast' + (msg.err ? ' err' : '')}>{msg.text}</div>
+  return (
+    <SonnerToaster
+      theme="dark"
+      position="bottom-center"
+      richColors
+      closeButton
+      toastOptions={{
+        style: {
+          background: '#1e1e22',
+          border: '1px solid rgba(255,255,255,0.11)',
+          color: '#ececee',
+        },
+      }}
+    />
+  )
 }
