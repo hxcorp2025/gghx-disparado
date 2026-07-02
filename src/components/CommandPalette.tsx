@@ -37,7 +37,7 @@ export function CommandPalette({
     { icon: FolderOpen, label: 'Campanhas', act: () => go('campanhas'), group: 'Navegar' },
     { icon: Send, label: 'Novo disparo', act: () => go('novo'), group: 'Navegar' },
     { icon: Radio, label: 'Disparos', act: () => go('disparos'), group: 'Navegar' },
-    { icon: Wrench, label: 'Extras', act: () => go('extras'), group: 'Navegar' },
+    { icon: Wrench, label: 'Ferramentas', act: () => go('extras'), group: 'Navegar' },
     { icon: QrCode, label: 'Conexão', act: () => go('conexao'), group: 'Navegar' },
     {
       icon: LogOut,

@@ -17,13 +17,15 @@ import { toast } from '../lib/toast'
 import { track } from '../lib/analytics'
 
 const TIPOS = [
-  { id: 'nome', label: 'Trocar nome', Icon: Type, campo: 'texto' },
-  { id: 'descricao', label: 'Trocar descrição', Icon: FileText, campo: 'texto' },
-  { id: 'foto', label: 'Trocar foto', Icon: Image, campo: 'foto' },
-  { id: 'add_membro', label: 'Adicionar membro', Icon: UserPlus, campo: 'phones' },
-  { id: 'add_admin', label: 'Adicionar admin', Icon: ShieldPlus, campo: 'phones' },
-  { id: 'remove_admin', label: 'Remover admin', Icon: ShieldMinus, campo: 'phones' },
+  { id: 'nome', label: 'Nome', Icon: Type, campo: 'texto', grupo: 'Editar comunidade', descr: 'Trocar o nome' },
+  { id: 'descricao', label: 'Descrição', Icon: FileText, campo: 'texto', grupo: 'Editar comunidade', descr: 'Trocar a descrição' },
+  { id: 'foto', label: 'Foto', Icon: Image, campo: 'foto', grupo: 'Editar comunidade', descr: 'Trocar a imagem' },
+  { id: 'add_membro', label: 'Adicionar membro', Icon: UserPlus, campo: 'phones', grupo: 'Membros e administradores', descr: 'Incluir números' },
+  { id: 'add_admin', label: 'Tornar admin', Icon: ShieldPlus, campo: 'phones', grupo: 'Membros e administradores', descr: 'Promover a admin' },
+  { id: 'remove_admin', label: 'Remover admin', Icon: ShieldMinus, campo: 'phones', grupo: 'Membros e administradores', descr: 'Rebaixar admin' },
 ] as const
+
+const GRUPOS = [...new Set(TIPOS.map((t) => t.grupo))]
 
 export function Extras() {
   const { grupos, selected } = useApp()
@@ -45,7 +47,8 @@ export function Extras() {
   const [abertoId, setAbertoId] = useState<number | null>(null)
   const [itens, setItens] = useState<AcaoItem[]>([])
 
-  const campo = TIPOS.find((t) => t.id === tipo)!.campo
+  const tSel = TIPOS.find((t) => t.id === tipo)!
+  const campo = tSel.campo
 
   useEffect(() => {
     listCampanhas().then(setCampanhas).catch(() => {})
@@ -95,7 +98,6 @@ export function Extras() {
   function valorFinal(): string | null {
     if (campo === 'texto') return texto.trim() || null
     if (campo === 'foto') return fotoUrl
-    // phones: uma por linha ou vírgula → só dígitos
     const arr = phones
       .split(/[\n,;]+/)
       .map((p) => p.replace(/\D/g, ''))
@@ -107,10 +109,9 @@ export function Extras() {
     if (!groupIds.length) return toast('Selecione grupos (aba Grupos) ou uma campanha', true)
     const valor = valorFinal()
     if (!valor) return toast('Preencha o valor da ação', true)
-    const nLabel = TIPOS.find((t) => t.id === tipo)!.label
     if (
       !confirm(
-        `${nLabel} em ${groupIds.length} grupo(s) pela conta ${conta}?\n\n⚠️ O chip precisa ser ADMIN dos grupos. Vai executar de verdade, com intervalo de ${intervalo}s entre cada.`,
+        `${tSel.label} em ${groupIds.length} grupo(s) pela conta ${conta}?\n\n⚠️ O chip precisa ser ADMIN dos grupos. Executa de verdade, com intervalo de ${intervalo}s entre cada.`,
       )
     )
       return
@@ -125,8 +126,12 @@ export function Extras() {
         group_ids: groupIds,
         subjects,
       })
-      track('extras_executado', { tipo, grupos: groupIds.length })
+      track('ferramenta_executada', { tipo, grupos: groupIds.length })
       toast(started ? `Ação #${id} iniciada!` : `Ação #${id} criada; motor não respondeu (retomar na lista).`, !started)
+      setTexto('')
+      setPhones('')
+      setFotoUrl(null)
+      setFotoNome('')
       reloadAcoes()
     } catch (e) {
       toast('Erro: ' + (e as Error).message, true)
@@ -158,31 +163,42 @@ export function Extras() {
 
   return (
     <section>
-      <div className="row" style={{ gap: 8, marginBottom: 4 }}>
-        <Wrench size={18} style={{ color: 'var(--accent)' }} />
-        <h2 style={{ margin: 0 }}>Extras · ações em massa nas comunidades</h2>
+      <div className="row" style={{ gap: 9, marginBottom: 2 }}>
+        <Wrench size={19} style={{ color: 'var(--accent)' }} />
+        <h2 style={{ margin: 0 }}>Ferramentas</h2>
       </div>
       <p className="mut" style={{ marginTop: 0 }}>
-        O chip precisa ser <b>admin</b> dos grupos. Add membro/admin só aceita número de telefone (não @lid).
+        Gerir comunidades em massa. O chip precisa ser <b>admin</b> dos grupos; add membro/admin só aceita
+        número de telefone (não @lid).
       </p>
 
       <div className="card" style={{ marginBottom: 18 }}>
-        <div className="field">
-          <label>Ação</label>
-          <div className="row" style={{ gap: 8 }}>
-            {TIPOS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={'btn sm ' + (tipo === t.id ? '' : 'ghost')}
-                onClick={() => setTipo(t.id)}
-              >
-                <t.Icon size={14} /> {t.label}
-              </button>
-            ))}
+        <div className="grouplbl">O que fazer</div>
+        {GRUPOS.map((g) => (
+          <div key={g}>
+            <div className="grouplbl" style={{ color: 'var(--mut)' }}>
+              {g}
+            </div>
+            <div className="actiongrid">
+              {TIPOS.filter((t) => t.grupo === g).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={'actioncard' + (tipo === t.id ? ' on' : '')}
+                  onClick={() => setTipo(t.id)}
+                >
+                  <span className="ac-ico">
+                    <t.Icon size={17} />
+                  </span>
+                  <span className="ac-t">{t.label}</span>
+                  <span className="ac-d">{t.descr}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ))}
 
+        {/* valor da ação escolhida */}
         {campo === 'texto' && (
           <div className="field">
             <label>{tipo === 'nome' ? 'Novo nome' : 'Nova descrição'}</label>
@@ -215,7 +231,7 @@ export function Extras() {
               rows={4}
               value={phones}
               onChange={(e) => setPhones(e.target.value)}
-              placeholder="5551999999999&#10;5544988888888"
+              placeholder={'5551999999999\n5544988888888'}
             />
           </div>
         )}
@@ -263,10 +279,14 @@ export function Extras() {
             <input type="number" min={0} value={jitter} onChange={(e) => setJitter(parseInt(e.target.value, 10) || 0)} />
           </div>
         </div>
-        <p className="mut">{groupIds.length} grupo(s) nesta ação.</p>
-        <button className="btn" disabled={firing} onClick={executar}>
-          {firing ? <span className="spin" /> : `Executar em ${groupIds.length} grupo(s)`}
-        </button>
+        <div className="row between">
+          <span className="count-pill">
+            <b>{groupIds.length}</b> grupos
+          </span>
+          <button className="btn" disabled={firing} onClick={executar}>
+            {firing ? <span className="spin" /> : `Executar ${tSel.label.toLowerCase()}`}
+          </button>
+        </div>
       </div>
 
       <div className="toolbar between">

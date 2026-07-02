@@ -23,7 +23,7 @@ const TABS: { id: ViewId; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'campanhas', label: 'Campanhas', Icon: FolderOpen },
   { id: 'novo', label: 'Novo disparo', Icon: Send },
   { id: 'disparos', label: 'Disparos', Icon: Radio },
-  { id: 'extras', label: 'Extras', Icon: Wrench },
+  { id: 'extras', label: 'Ferramentas', Icon: Wrench },
   { id: 'conexao', label: 'Conexão', Icon: QrCode },
 ]
 

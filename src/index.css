@@ -204,6 +204,18 @@ input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); c
 .wa-bubble a { color: #7ecbf2; }
 .wa-bubble code { background: rgba(0, 0, 0, 0.25); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
 
+/* ---------- action cards (Ferramentas) ---------- */
+.grouplbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mut2); font-weight: 600; margin: 4px 0 9px; }
+.actiongrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+.actioncard { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--txt); text-align: left; transition: all 0.15s var(--ease); }
+.actioncard:hover { border-color: var(--line2); background: var(--surface2); }
+.actioncard.on { border-color: var(--accent); background: var(--accent-tint); }
+.actioncard .ac-ico { width: 34px; height: 34px; border-radius: 9px; background: var(--surface2); display: flex; align-items: center; justify-content: center; color: var(--mut); }
+.actioncard.on .ac-ico { background: var(--accent); color: var(--accent-ink); }
+.actioncard .ac-t { font-weight: 600; font-size: 13.5px; }
+.actioncard .ac-d { font-size: 11.5px; color: var(--mut); line-height: 1.35; }
+@media (max-width: 640px) { .actiongrid { grid-template-columns: 1fr; } }
+
 /* ---------- empty state ---------- */
 .empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 44px 24px; }
 .empty-ico { width: 52px; height: 52px; border-radius: 13px; background: var(--surface2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--mut); margin-bottom: 15px; }
