@@ -40,8 +40,8 @@ export function Extras() {
   const [campanhaId, setCampanhaId] = useState<number | null>(null)
   const [contas, setContas] = useState<Conta[]>([{ id: 'hxsend', nome: 'HxSend' }])
   const [conta, setConta] = useState('hxsend')
-  const [intervalo, setIntervalo] = useState(60)
-  const [jitter, setJitter] = useState(20)
+  const [intervalo, setIntervalo] = useState(15) // MINUTOS (ações admin são lentas p/ anti-ban)
+  const [jitter, setJitter] = useState(3) // MINUTOS
   const [firing, setFiring] = useState(false)
   const [acoes, setAcoes] = useState<Acao[]>([])
   const [abertoId, setAbertoId] = useState<number | null>(null)
@@ -111,7 +111,7 @@ export function Extras() {
     if (!valor) return toast('Preencha o valor da ação', true)
     if (
       !confirm(
-        `${tSel.label} em ${groupIds.length} grupo(s) pela conta ${conta}?\n\n⚠️ O chip precisa ser ADMIN dos grupos. Executa de verdade, com intervalo de ${intervalo}s entre cada.`,
+        `${tSel.label} em ${groupIds.length} grupo(s) pela conta ${conta}?\n\n⚠️ O chip precisa ser ADMIN dos grupos. Executa de verdade, ~1 grupo a cada ${intervalo} min (anti-ban).`,
       )
     )
       return
@@ -121,8 +121,8 @@ export function Extras() {
         tipo,
         conta_id: conta,
         valor,
-        intervalo_seg: intervalo,
-        jitter_seg: jitter,
+        intervalo_seg: intervalo * 60,
+        jitter_seg: jitter * 60,
         group_ids: groupIds,
         subjects,
       })
@@ -271,14 +271,24 @@ export function Extras() {
         </div>
         <div className="grid2">
           <div className="field">
-            <label>Intervalo entre grupos (s)</label>
-            <input type="number" min={3} value={intervalo} onChange={(e) => setIntervalo(parseInt(e.target.value, 10) || 0)} />
+            <label>Intervalo entre grupos (minutos)</label>
+            <input
+              type="number"
+              min={1}
+              value={intervalo}
+              onChange={(e) => setIntervalo(parseInt(e.target.value, 10) || 0)}
+            />
           </div>
           <div className="field">
-            <label>Jitter (s)</label>
+            <label>Variação aleatória (minutos)</label>
             <input type="number" min={0} value={jitter} onChange={(e) => setJitter(parseInt(e.target.value, 10) || 0)} />
           </div>
         </div>
+        <p className="mut" style={{ marginTop: -4 }}>
+          {intervalo >= 1
+            ? `~1 grupo a cada ${intervalo}${jitter ? `–${intervalo + jitter}` : ''} min · ≈ ${Math.max(1, Math.round(60 / (intervalo + jitter / 2)))} grupos/hora. Ir devagar reduz risco de ban.`
+            : 'Defina o intervalo em minutos (anti-ban).'}
+        </p>
         <div className="row between">
           <span className="count-pill">
             <b>{groupIds.length}</b> grupos
