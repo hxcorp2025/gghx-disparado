@@ -14,6 +14,10 @@ export const CONFIG = {
 
 export const MEDIA_BUCKET = 'gghx-midia'
 
+// PostHog (project token é write-only/público por design, safe no client)
+export const POSTHOG_KEY = 'phc_zUH9XZoLvnhyRch9E37kTtNFZg3cdiV9PJ2ZjXCPxPMj'
+export const POSTHOG_HOST = 'https://us.i.posthog.com'
+
 // Flags de feature. Ligar quando o backend correspondente estiver no ar.
 export const FEATURES = {
   // Agendamento: coluna scheduled_at + poller (cron gghx-agendador) ATIVOS desde 02/07.

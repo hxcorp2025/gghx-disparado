@@ -6,6 +6,7 @@ import { FEATURES } from '../lib/config'
 import { toast } from '../lib/toast'
 import { PreviewWhatsApp } from '../components/PreviewWhatsApp'
 import { spin, countVariations, hasSpintax } from '../lib/spintax'
+import { track } from '../lib/analytics'
 import type { Campanha, Conta, MediaTipo, MencaoTipo } from '../lib/types'
 
 const STEPS = ['Campanha', 'Número', 'Configurar', 'Confirmar']
@@ -126,6 +127,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
       setFiring(true)
       try {
         const id = await agendarDisparo(payload, quando.toISOString())
+        track('disparo_agendado', { grupos: groupIds.length, media: mediaTipo, mencao: tipoMencao, spintax: temSpin, variacoes: nVar })
         toast(`Disparo #${id} agendado para ${quando.toLocaleString('pt-BR')}`)
         goTo('disparos')
       } catch (e) {
@@ -140,6 +142,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
     setFiring(true)
     try {
       const { id, started } = await criarEDisparar(payload)
+      track('disparo_iniciado', { grupos: groupIds.length, media: mediaTipo, mencao: tipoMencao, spintax: temSpin, variacoes: nVar, started })
       if (started) {
         toast(`Disparo #${id} iniciado!`)
       } else {

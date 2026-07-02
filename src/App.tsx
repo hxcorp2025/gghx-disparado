@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { BarChart3, Users, FolderOpen, Send, Radio, QrCode, LogOut } from 'lucide-react'
 import { sb } from './lib/supabase'
+import { identifyUser, resetAnalytics } from './lib/analytics'
 import { AppProvider } from './state'
 import { Login } from './components/Login'
 import { Toast } from './components/Toast'
@@ -36,6 +37,10 @@ export default function App() {
     const { data: sub } = sb.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => sub.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (session?.user?.email) identifyUser(session.user.email, session.user.id)
+  }, [session])
 
   if (!ready) return null
   if (!session)
@@ -73,7 +78,14 @@ export default function App() {
                 {session.user.email}
               </span>
             </div>
-            <button className="iconbtn" title="Sair" onClick={() => sb.auth.signOut()}>
+            <button
+              className="iconbtn"
+              title="Sair"
+              onClick={() => {
+                resetAnalytics()
+                sb.auth.signOut()
+              }}
+            >
               <LogOut size={17} />
             </button>
           </div>
