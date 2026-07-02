@@ -80,6 +80,14 @@ export function Estatisticas() {
           <div className="sub">últimos {dias} dias</div>
         </div>
         <div className="statcard sc-saldo">
+          <div className="lbl">Crescimento</div>
+          <div className="val" style={{ color: mov.entradas - mov.saidas >= 0 ? 'var(--accent)' : 'var(--red)' }}>
+            {mov.entradas - mov.saidas >= 0 ? '+' : ''}
+            {mov.entradas - mov.saidas}
+          </div>
+          <div className="sub">saldo · {dias} dias</div>
+        </div>
+        <div className="statcard">
           <div className="lbl">Taxa de leitura</div>
           <div className="val" style={{ color: 'var(--blue)' }}>
             {taxaLeitura}%

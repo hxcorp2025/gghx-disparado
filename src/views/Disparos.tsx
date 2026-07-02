@@ -33,6 +33,7 @@ export function Disparos() {
   const [metrics, setMetrics] = useState<DisparoMetrics | null>(null)
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abrirSeq = useRef(0)
+  const [filtro, setFiltro] = useState('todas')
 
   const reload = useCallback(async () => {
     try {
@@ -137,12 +138,32 @@ export function Disparos() {
         </div>
       </div>
 
+      {!loading && lista.length > 0 && (
+        <div className="stepper" style={{ marginBottom: 16 }}>
+          {[
+            ['todas', 'Todas'],
+            ['rodando', 'Rodando'],
+            ['agendado', 'Agendado'],
+            ['pausada', 'Pausada'],
+            ['concluida', 'Concluída'],
+            ['cancelada', 'Cancelada'],
+          ].map(([id, lb]) => {
+            const n = id === 'todas' ? lista.length : lista.filter((c) => c.status === id).length
+            return (
+              <button key={id} className={'step' + (filtro === id ? ' on' : '')} onClick={() => setFiltro(id)}>
+                {lb} <span className="num">{n}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {loading && <SkeletonList rows={5} height={62} />}
       {!loading && !lista.length && (
         <Empty Icon={Radio} title="Nenhum disparo ainda" sub="Crie um disparo na aba Novo disparo. Ele aparece aqui com o acompanhamento em tempo real." />
       )}
 
-      {lista.map((c) => {
+      {(filtro === 'todas' ? lista : lista.filter((c) => c.status === filtro)).map((c) => {
         const rodando = c.status === 'rodando'
         const pausada = c.status === 'pausada'
         return (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { BarChart3, Users, FolderOpen, Send, Radio, QrCode, LogOut } from 'lucide-react'
+import { BarChart3, Users, FolderOpen, Send, Radio, QrCode, LogOut, Wrench } from 'lucide-react'
 import { sb } from './lib/supabase'
 import { identifyUser, resetAnalytics } from './lib/analytics'
 import { AppProvider } from './state'
@@ -13,8 +13,9 @@ import { Campanhas } from './views/Campanhas'
 import { NovoDisparo } from './views/NovoDisparo'
 import { Disparos } from './views/Disparos'
 import { Conexao } from './views/Conexao'
+import { Extras } from './views/Extras'
 
-export type ViewId = 'estatisticas' | 'grupos' | 'campanhas' | 'novo' | 'disparos' | 'conexao'
+export type ViewId = 'estatisticas' | 'grupos' | 'campanhas' | 'novo' | 'disparos' | 'conexao' | 'extras'
 
 const TABS: { id: ViewId; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'estatisticas', label: 'Estatísticas', Icon: BarChart3 },
@@ -22,6 +23,7 @@ const TABS: { id: ViewId; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'campanhas', label: 'Campanhas', Icon: FolderOpen },
   { id: 'novo', label: 'Novo disparo', Icon: Send },
   { id: 'disparos', label: 'Disparos', Icon: Radio },
+  { id: 'extras', label: 'Extras', Icon: Wrench },
   { id: 'conexao', label: 'Conexão', Icon: QrCode },
 ]
 
@@ -106,6 +108,7 @@ export default function App() {
             {view === 'campanhas' && <Campanhas goTo={setView} />}
             {view === 'novo' && <NovoDisparo goTo={setView} />}
             {view === 'disparos' && <Disparos />}
+            {view === 'extras' && <Extras />}
             {view === 'conexao' && <Conexao />}
           </main>
         </div>

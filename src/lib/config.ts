@@ -10,6 +10,7 @@ export const CONFIG = {
   N8N_DISPARAR: 'https://n8n-n8n.sf6dqo.easypanel.host/webhook/HX-gghx-disparar',
   N8N_CONEXAO: 'https://n8n-n8n.sf6dqo.easypanel.host/webhook/HX-gghx-conexao',
   N8N_SNAPSHOT: 'https://n8n-n8n.sf6dqo.easypanel.host/webhook/HX-gghx-snapshot',
+  N8N_EXTRAS: 'https://n8n-n8n.sf6dqo.easypanel.host/webhook/HX-gghx-extras',
 } as const
 
 export const MEDIA_BUCKET = 'gghx-midia'

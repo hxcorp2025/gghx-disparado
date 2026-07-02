@@ -338,6 +338,103 @@ export async function conexaoCall(action: 'status' | 'qr' | 'disconnect'): Promi
   return r.json().catch(() => ({ ok: false, error: 'resposta inválida' }))
 }
 
+// ===== EXTRAS (ações em massa nas comunidades) =====
+export type Acao = {
+  id: number
+  tipo: string
+  conta_id: string | null
+  valor: string | null
+  status: string
+  total: number | null
+  enviados: number | null
+  falhas: number | null
+  intervalo_seg: number
+  jitter_seg: number
+  criado_em: string | null
+  iniciado_em: string | null
+  concluido_em: string | null
+}
+export type AcaoItem = {
+  id: number
+  acao_id: number
+  group_id: string
+  subject: string | null
+  status: string
+  erro: string | null
+  executado_em: string | null
+}
+
+export async function listAcoes(limit = 50): Promise<Acao[]> {
+  const { data, error } = await sb.from('gghx_acoes').select('*').order('criado_em', { ascending: false }).limit(limit)
+  if (error) throw error
+  return (data ?? []) as Acao[]
+}
+export async function getAcaoItens(acaoId: number): Promise<AcaoItem[]> {
+  const { data, error } = await sb
+    .from('gghx_acao_itens')
+    .select('*')
+    .eq('acao_id', acaoId)
+    .order('ordem', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as AcaoItem[]
+}
+export async function chamarMotorExtras(acaoId: number): Promise<Response> {
+  const t = await token()
+  return fetch(CONFIG.N8N_EXTRAS, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ acao_id: acaoId, access_token: t }),
+  })
+}
+export async function setAcaoStatus(acaoId: number, status: string): Promise<void> {
+  const { error } = await sb.from('gghx_acoes').update({ status }).eq('id', acaoId)
+  if (error) throw error
+}
+
+export type NovaAcao = {
+  tipo: string
+  conta_id: string
+  valor: string
+  intervalo_seg: number
+  jitter_seg: number
+  group_ids: string[]
+  subjects: Record<string, string | null>
+}
+export async function criarEExecutarAcao(a: NovaAcao): Promise<{ id: number; started: boolean }> {
+  const { data: ac, error: e1 } = await sb
+    .from('gghx_acoes')
+    .insert({
+      tipo: a.tipo,
+      conta_id: a.conta_id,
+      valor: a.valor,
+      intervalo_seg: Math.min(600, Math.max(3, a.intervalo_seg || 60)),
+      jitter_seg: Math.min(120, Math.max(0, a.jitter_seg || 0)),
+      status: 'rascunho',
+      total: a.group_ids.length,
+    })
+    .select('id')
+    .single()
+  if (e1) throw e1
+  const acaoId = (ac as { id: number }).id
+  const itens = a.group_ids.map((g, i) => ({
+    acao_id: acaoId,
+    group_id: g,
+    subject: a.subjects[g] ?? null,
+    ordem: i + 1,
+    status: 'pendente',
+  }))
+  const { error: e2 } = await sb.from('gghx_acao_itens').insert(itens)
+  if (e2) throw e2
+  let started = false
+  try {
+    const r = await chamarMotorExtras(acaoId)
+    started = r.ok
+  } catch {
+    started = false
+  }
+  return { id: acaoId, started }
+}
+
 // ===== upload de mídia =====
 export async function uploadMidia(file: File): Promise<string> {
   const path = 'campanhas/' + Date.now() + '_' + file.name.replace(/[^\w.\-]/g, '_')
