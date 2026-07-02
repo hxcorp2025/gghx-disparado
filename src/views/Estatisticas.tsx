@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { useApp } from '../state'
 import { getMovimentosResumo, listAvisos, statsDiario, disparosDiario } from '../lib/db'
 import type { Aviso, StatDia, DisparoDia } from '../lib/db'
 import { SkeletonCards } from '../components/Skeleton'
-import { EntregasChart, DisparosChart } from '../components/Charts'
+
+// code-split: recharts só carrega ao abrir esta aba
+const EntregasChart = lazy(() => import('../components/Charts').then((m) => ({ default: m.EntregasChart })))
+const DisparosChart = lazy(() => import('../components/Charts').then((m) => ({ default: m.DisparosChart })))
+const chartFallback = <div className="skel" style={{ height: 230, borderRadius: 10 }} />
 
 export function Estatisticas() {
   const { grupos, loadingGrupos } = useApp()
@@ -90,7 +94,9 @@ export function Estatisticas() {
           <span className="mut" style={{ fontSize: 12 }}>últimos 14 dias</span>
         </div>
         {statsDia.length ? (
-          <EntregasChart data={statsDia} />
+          <Suspense fallback={chartFallback}>
+            <EntregasChart data={statsDia} />
+          </Suspense>
         ) : (
           <p className="mut">Sem mensagens ainda.</p>
         )}
@@ -99,7 +105,13 @@ export function Estatisticas() {
       <div className="grid2">
         <div className="card">
           <h2>Disparos por dia</h2>
-          {dispDia.length ? <DisparosChart data={dispDia} /> : <p className="mut">Sem disparos ainda.</p>}
+          {dispDia.length ? (
+            <Suspense fallback={chartFallback}>
+              <DisparosChart data={dispDia} />
+            </Suspense>
+          ) : (
+            <p className="mut">Sem disparos ainda.</p>
+          )}
         </div>
 
         <div className="card">
