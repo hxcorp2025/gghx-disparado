@@ -1,54 +1,46 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from '../state'
-import { getMovimentosResumo, listAvisos, listDisparos } from '../lib/db'
+import { getMovimentosResumo, listAvisos, statsDiario, disparosDiario } from '../lib/db'
+import type { Aviso, StatDia, DisparoDia } from '../lib/db'
 import { SkeletonCards } from '../components/Skeleton'
-import type { Aviso } from '../lib/db'
-import type { Disparo } from '../lib/types'
+import { EntregasChart, DisparosChart } from '../components/Charts'
 
 export function Estatisticas() {
   const { grupos, loadingGrupos } = useApp()
   const [mov, setMov] = useState({ entradas: 0, saidas: 0 })
   const [avisos, setAvisos] = useState<Aviso[]>([])
-  const [disparos, setDisparos] = useState<Disparo[]>([])
-  const [dias, setDias] = useState(7)
+  const [statsDia, setStatsDia] = useState<StatDia[]>([])
+  const [dispDia, setDispDia] = useState<DisparoDia[]>([])
+  const dias = 7
 
   useEffect(() => {
     getMovimentosResumo(dias).then(setMov).catch(() => {})
   }, [dias])
   useEffect(() => {
     listAvisos().then(setAvisos).catch(() => {})
-    listDisparos(200).then(setDisparos).catch(() => {})
+    statsDiario(14).then(setStatsDia).catch(() => {})
+    disparosDiario(14).then(setDispDia).catch(() => {})
   }, [])
 
   const gruposAtivos = grupos.length
   const avisosCount = grupos.filter((g) => g.is_announcement === true).length
   const pessoas = grupos.reduce((n, g) => n + (g.participantes || 0), 0)
-  const saldo = mov.entradas - mov.saidas
 
-  // disparos por dia (BR), ordenado do mais recente pro mais antigo
-  const porDia = useMemo(() => {
-    const m: Record<string, { n: number; ts: number }> = {}
-    disparos.forEach((d) => {
-      if (!d.criado_em) return
-      const date = new Date(d.criado_em)
-      const dia = date.toLocaleDateString('pt-BR')
-      if (!m[dia]) m[dia] = { n: 0, ts: date.getTime() }
-      m[dia].n++
-      m[dia].ts = Math.max(m[dia].ts, date.getTime())
-    })
-    return Object.entries(m)
-      .sort((a, b) => b[1].ts - a[1].ts)
-      .slice(0, 14)
-      .map(([dia, v]) => [dia, v.n] as [string, number])
-  }, [disparos])
+  // taxa de leitura agregada (piso) dos últimos 14d
+  const tot = statsDia.reduce(
+    (a, s) => ({ e: a.e + s.enviadas, d: a.d + s.entregues, l: a.l + s.lidas }),
+    { e: 0, d: 0, l: 0 },
+  )
+  const taxaLeitura = tot.e ? Math.round((tot.l / tot.e) * 100) : 0
 
   if (loadingGrupos && !grupos.length) {
     return (
       <section>
         <SkeletonCards n={5} />
+        <div className="skel" style={{ height: 260, borderRadius: 'var(--r-card)', marginBottom: 14 }} />
         <div className="grid2">
-          <div className="skel" style={{ height: 220, borderRadius: 'var(--r-card)' }} />
-          <div className="skel" style={{ height: 220, borderRadius: 'var(--r-card)' }} />
+          <div className="skel" style={{ height: 260, borderRadius: 'var(--r-card)' }} />
+          <div className="skel" style={{ height: 260, borderRadius: 'var(--r-card)' }} />
         </div>
       </section>
     )
@@ -84,55 +76,49 @@ export function Estatisticas() {
           <div className="sub">últimos {dias} dias</div>
         </div>
         <div className="statcard sc-saldo">
-          <div className="lbl">Saldo</div>
-          <div className="val" style={{ color: saldo >= 0 ? 'var(--accent)' : 'var(--red)' }}>
-            {saldo >= 0 ? '+' : ''}
-            {saldo}
+          <div className="lbl">Taxa de leitura</div>
+          <div className="val" style={{ color: 'var(--blue)' }}>
+            {taxaLeitura}%
           </div>
-          <div className="sub">{dias} dias</div>
+          <div className="sub">piso · 14 dias</div>
         </div>
       </div>
 
-      <div className="row" style={{ marginBottom: 14 }}>
-        <span className="mut">Período do saldo:</span>
-        <select style={{ width: 'auto' }} value={dias} onChange={(e) => setDias(+e.target.value)}>
-          <option value={1}>24h</option>
-          <option value={7}>7 dias</option>
-          <option value={30}>30 dias</option>
-        </select>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="row between" style={{ marginBottom: 4 }}>
+          <h2 style={{ margin: 0 }}>Entregas por dia</h2>
+          <span className="mut" style={{ fontSize: 12 }}>últimos 14 dias</span>
+        </div>
+        {statsDia.length ? (
+          <EntregasChart data={statsDia} />
+        ) : (
+          <p className="mut">Sem mensagens ainda.</p>
+        )}
       </div>
 
       <div className="grid2">
         <div className="card">
           <h2>Disparos por dia</h2>
-          {!porDia.length && <p className="mut">Sem disparos ainda.</p>}
-          <table>
-            <tbody>
-              {porDia.map(([dia, n]) => (
-                <tr key={dia}>
-                  <td>{dia}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <b>{n}</b> disparo(s)
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {dispDia.length ? <DisparosChart data={dispDia} /> : <p className="mut">Sem disparos ainda.</p>}
         </div>
 
         <div className="card">
-          <h2>Avisos (chip / conexão)</h2>
+          <div className="row between" style={{ marginBottom: 4 }}>
+            <h2 style={{ margin: 0 }}>Avisos (chip / conexão)</h2>
+            <span className="mut" style={{ fontSize: 12 }}>saúde</span>
+          </div>
           {!avisos.length && <p className="mut">Sem avisos recentes.</p>}
-          <div className="scroll" style={{ maxHeight: '40vh', border: 'none' }}>
+          <div className="scroll" style={{ maxHeight: 200, border: 'none' }}>
             <table>
               <tbody>
                 {avisos.map((a) => {
                   const desconectou = a.evento === 'disconnected'
+                  const ban = a.evento === 'ban_suspeito' || a.evento === 'limite_atingido'
                   return (
                     <tr key={a.id}>
                       <td>
-                        <span className={'badge b-' + (desconectou ? 'erro' : 'concluida')}>
-                          {desconectou ? '🔴 caiu' : '🟢 conectou'}
+                        <span className={'badge b-' + (desconectou || ban ? 'erro' : 'concluida')}>
+                          {ban ? '⚠ ' + a.evento : desconectou ? '🔴 caiu' : '🟢 conectou'}
                         </span>{' '}
                         {a.instancia || 'HxSend'}
                         {a.motivo ? <span className="mut"> · {a.motivo}</span> : null}

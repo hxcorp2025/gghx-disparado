@@ -246,6 +246,20 @@ export async function reenviarItens(disparoId: number, deStatus: 'falha' | 'pula
   return chamarMotor(disparoId)
 }
 
+// ===== dashboard (RPCs de agregação diária) =====
+export type StatDia = { dia: string; enviadas: number; entregues: number; lidas: number }
+export async function statsDiario(dias = 14): Promise<StatDia[]> {
+  const { data, error } = await sb.rpc('gghx_stats_diario', { p_dias: dias })
+  if (error) throw error
+  return (data ?? []) as StatDia[]
+}
+export type DisparoDia = { dia: string; n: number }
+export async function disparosDiario(dias = 14): Promise<DisparoDia[]> {
+  const { data, error } = await sb.rpc('gghx_disparos_diario', { p_dias: dias })
+  if (error) throw error
+  return (data ?? []) as DisparoDia[]
+}
+
 // ===== estatísticas =====
 export async function getMovimentosResumo(dias: number): Promise<{ entradas: number; saidas: number }> {
   const desde = new Date(Date.now() - dias * 86400000).toISOString()
