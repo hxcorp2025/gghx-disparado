@@ -9,8 +9,9 @@ import {
   chamarMotor,
 } from '../lib/db'
 import type { DisparoMetrics } from '../lib/db'
-import { Radio } from 'lucide-react'
+import { Radio, Download } from 'lucide-react'
 import { toast } from '../lib/toast'
+import { downloadCSV } from '../lib/csv'
 import { SkeletonList } from '../components/Skeleton'
 import { Empty } from '../components/Empty'
 import type { Disparo, DisparoItem } from '../lib/types'
@@ -108,9 +109,32 @@ export function Disparos() {
     <section>
       <div className="toolbar between">
         <h2 style={{ margin: 0 }}>Disparos</h2>
-        <button className="btn ghost sm" onClick={reload}>
-          Atualizar
-        </button>
+        <div className="row">
+          <button
+            className="btn ghost sm"
+            disabled={!lista.length}
+            onClick={() =>
+              downloadCSV(
+                'disparos_' + new Date().toISOString().slice(0, 10) + '.csv',
+                lista.map((c) => ({
+                  id: c.id,
+                  nome: c.nome || '',
+                  status: c.status,
+                  total: c.total || 0,
+                  enviados: c.enviados || 0,
+                  falhas: c.falhas || 0,
+                  criado_em: c.criado_em ? new Date(c.criado_em).toLocaleString('pt-BR') : '',
+                  concluido_em: c.concluido_em ? new Date(c.concluido_em).toLocaleString('pt-BR') : '',
+                })),
+              )
+            }
+          >
+            <Download size={14} /> CSV
+          </button>
+          <button className="btn ghost sm" onClick={reload}>
+            Atualizar
+          </button>
+        </div>
       </div>
 
       {loading && <SkeletonList rows={5} height={62} />}

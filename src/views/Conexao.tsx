@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { conexaoCall, listContas } from '../lib/db'
 import { FEATURES } from '../lib/config'
 import { toast } from '../lib/toast'
+import { SaudeChipPanel } from '../components/SaudeChip'
 import type { Conta } from '../lib/types'
 
 type Status = {
@@ -83,6 +84,8 @@ export function Conexao() {
       <p className="mut" style={{ marginTop: 0 }}>
         Conecte um número novo (se o atual cair/for banido) ou desconecte o atual.
       </p>
+
+      <SaudeChipPanel />
 
       <div className="field" style={{ maxWidth: 320 }}>
         <label>Conta</label>

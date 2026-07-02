@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ViewId } from '../App'
 import { useApp } from '../state'
-import { listCampanhas, uploadMidia, criarEDisparar, agendarDisparo, listContas } from '../lib/db'
+import {
+  listCampanhas,
+  uploadMidia,
+  criarEDisparar,
+  agendarDisparo,
+  listContas,
+  listTemplates,
+  createTemplate,
+} from '../lib/db'
+import type { Template } from '../lib/db'
 import { FEATURES } from '../lib/config'
 import { toast } from '../lib/toast'
 import { PreviewWhatsApp } from '../components/PreviewWhatsApp'
@@ -33,6 +42,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
   const [uploading, setUploading] = useState(false)
   const [fileName, setFileName] = useState('')
   const [mensagem, setMensagem] = useState('')
+  const [templates, setTemplates] = useState<Template[]>([])
   const [tipoMencao, setTipoMencao] = useState<MencaoTipo>('fantasma')
   const [intervalo, setIntervalo] = useState(60)
   const [jitter, setJitter] = useState(20)
@@ -48,7 +58,21 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
       setContas(cs)
       setConta(cs[0].id)
     })
+    listTemplates().then(setTemplates).catch(() => {})
   }, [])
+
+  async function salvarTemplate() {
+    if (!mensagem.trim()) return toast('Escreva a mensagem antes de salvar', true)
+    const nome = prompt('Nome do template (ex: Aviso sorteio):')
+    if (!nome) return
+    try {
+      await createTemplate(nome, mensagem)
+      setTemplates(await listTemplates())
+      toast(`Template "${nome}" salvo`)
+    } catch (e) {
+      toast('Erro: ' + (e as Error).message, true)
+    }
+  }
 
   const groupIds = useMemo(() => {
     if (fonte === 'selecao') return [...selected]
@@ -262,8 +286,38 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
                 </p>
               </div>
             )}
+            {templates.length > 0 && (
+              <div className="field">
+                <label>Templates salvos</label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const t = templates.find((x) => x.id === +e.target.value)
+                    if (t) {
+                      setMensagem(t.mensagem)
+                      toast(`Template "${t.nome}" carregado`)
+                    }
+                  }}
+                  style={{ maxWidth: 320 }}
+                >
+                  <option value="">carregar um template...</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="field">
-              <label>{mediaTipo === 'texto' ? 'Mensagem' : 'Texto (vai abaixo da mídia e marca todos)'}</label>
+              <div className="row between" style={{ marginBottom: 7 }}>
+                <label style={{ margin: 0 }}>
+                  {mediaTipo === 'texto' ? 'Mensagem' : 'Texto (vai abaixo da mídia e marca todos)'}
+                </label>
+                <button className="btn ghost sm" type="button" onClick={salvarTemplate}>
+                  Salvar como template
+                </button>
+              </div>
               <textarea
                 rows={5}
                 value={mensagem}

@@ -290,6 +290,43 @@ export async function listAvisos(limit = 30): Promise<Aviso[]> {
   return (data ?? []) as Aviso[]
 }
 
+// ===== templates de mensagem =====
+export type Template = { id: number; nome: string; mensagem: string; created_at: string | null }
+export async function listTemplates(): Promise<Template[]> {
+  const { data, error } = await sb
+    .from('gghx_templates')
+    .select('id,nome,mensagem,created_at')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as Template[]
+}
+export async function createTemplate(nome: string, mensagem: string): Promise<void> {
+  const { error } = await sb.from('gghx_templates').insert({ nome, mensagem })
+  if (error) throw error
+}
+export async function deleteTemplate(id: number): Promise<void> {
+  const { error } = await sb.from('gghx_templates').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ===== saúde de chip =====
+export type SaudeChip = {
+  conta_id: string
+  nome: string
+  status: string
+  limite_hora: number
+  limite_dia: number
+  enviadas_hora: number
+  enviadas_24h: number
+  entregues_24h: number
+  lidas_24h: number
+}
+export async function saudeChip(): Promise<SaudeChip[]> {
+  const { data, error } = await sb.rpc('gghx_saude_chip')
+  if (error) throw error
+  return (data ?? []) as SaudeChip[]
+}
+
 // ===== conexão (status/qr/disconnect via n8n) =====
 export async function conexaoCall(action: 'status' | 'qr' | 'disconnect'): Promise<Record<string, unknown>> {
   const t = await token()
