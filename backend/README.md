@@ -1,10 +1,19 @@
-# Backend — o que falta rodar em produção (janela dedicada)
+# Backend — estado
 
-O app novo (frontend) está no ar em send.hx-corp.com. Estas tarefas mexem em infra de
-produção (Supabase SQL / n8n) e por isso ficam fora do fluxo automático — rodar com
-revisão, em janela de baixo tráfego, sem disparo pendente.
+App no ar em send.hx-corp.com. Deploy do frontend: push na `main` → GitHub Actions publica.
 
-Deploy do frontend: push na `main` → GitHub Actions builda e publica sozinho.
+## Status (02/07/2026)
+- ✅ **Agendamento: ATIVO.** Aplicado via Supabase MCP: coluna `scheduled_at`, poller
+  `gghx_fire_scheduled()` (usa a extensão **http** síncrona, não pg_net), cron `gghx-agendador`
+  (1/min), e `ISECRET` do motor gravado no Vault (`gghx_motor_isecret`) server-side. Flag
+  `FEATURES.agendamento=true`. Validado ponta a ponta (disparo seco 0 grupos → concluída).
+- ✅ **Multi-conta: schema ATIVO** (`gghx_contas` seed hxsend, `conta_id` em grupos/campanhas
+  backfillado). Frontend prep no ar. **Flag `multiconta` fica OFF** até existir 2º chip (aí:
+  editar motor por conta + Partner API + insert conta + flip flag).
+- ⏳ **Signup público:** desligar no painel Supabase (Auth → Providers). Management API bloqueia no auto-mode.
+- ⏳ **Rotacionar service_role:** coordenado (re-bakar n8n de vários projetos).
+
+O texto abaixo é o runbook original (histórico / passos que já foram executados p/ agendamento).
 
 ---
 
