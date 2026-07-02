@@ -151,6 +151,18 @@ input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); c
 .st-enviado { color: var(--accent); } .st-pendente { color: var(--mut); }
 .st-falha { color: var(--red); } .st-pulado { color: var(--amber); } .st-enviando { color: var(--blue); }
 
+/* ---------- detalhe do disparo: meta + contadores ---------- */
+.dispmeta { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+.mchip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: var(--r-sm); font-size: 12px; font-weight: 500; background: var(--surface2); color: var(--mut); border: 1px solid var(--line); }
+.dispcounters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.cnt { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 550; background: var(--surface2); color: var(--mut); border: 1px solid var(--line); }
+.cnt b { font-size: 13px; font-weight: 700; }
+.cnt.c-ok { background: var(--accent-tint); color: var(--accent); border-color: transparent; }
+.cnt.c-run { background: var(--blue-tint); color: var(--blue); border-color: transparent; }
+.cnt.c-err { background: var(--red-tint); color: var(--red); border-color: transparent; }
+.cnt.c-skip { background: var(--amber-tint); color: var(--amber); border-color: transparent; }
+.cnt.c-total b, .cnt.c-pend b { color: var(--txt); }
+
 /* ---------- forms ---------- */
 .field { margin-bottom: 16px; }
 .field label { display: block; margin-bottom: 7px; font-weight: 550; font-size: 13px; color: var(--txt); }

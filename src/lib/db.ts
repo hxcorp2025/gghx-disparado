@@ -212,18 +212,15 @@ export async function chamarMotor(disparoId: number): Promise<Response> {
 export type DisparoMetrics = { enviadas: number; entregues: number; lidas: number }
 
 export async function getDisparoMetrics(disparoId: number): Promise<DisparoMetrics> {
-  // gghx_mensagens.campanha_id é TEXT; o motor grava String(campId)
-  const { data, error } = await sb
-    .from('gghx_mensagens')
-    .select('status_atual,delivered_at,read_at')
-    .eq('campanha_id', String(disparoId))
-    .limit(20000)
+  // gghx_mensagens tem RLS deny-all p/ authenticated; o RPC (definer) devolve os agregados.
+  // campanha_id é TEXT; o motor grava String(campId).
+  const { data, error } = await sb.rpc('gghx_disparo_metrics', { p_disparo: String(disparoId) })
   if (error) throw error
-  const rows = data ?? []
+  const r = (Array.isArray(data) ? data[0] : data) ?? {}
   return {
-    enviadas: rows.length,
-    entregues: rows.filter((r: { delivered_at: string | null }) => r.delivered_at != null).length,
-    lidas: rows.filter((r: { read_at: string | null }) => r.read_at != null).length,
+    enviadas: Number(r.enviadas ?? 0),
+    entregues: Number(r.entregues ?? 0),
+    lidas: Number(r.lidas ?? 0),
   }
 }
 

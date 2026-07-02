@@ -21,8 +21,24 @@ function dur(ini: string | null, fim: string | null): string {
   const a = new Date(ini).getTime()
   const b = (fim ? new Date(fim) : new Date()).getTime()
   const s = Math.max(0, Math.round((b - a) / 1000))
-  const m = Math.floor(s / 60)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  if (h > 0) return `${h}h ${m}min`
   return m > 0 ? `${m}min ${s % 60}s` : `${s}s`
+}
+
+const MENCAO_LB: Record<string, string> = {
+  nenhuma: 'Sem menção',
+  fantasma: 'Menção fantasma',
+  todos: 'Menciona @todos',
+}
+
+// intervalo em texto humano (o motor guarda segundos)
+function fmtInt(seg: number): string {
+  if (!seg) return 'imediato'
+  if (seg < 60) return `${seg}s`
+  const m = Math.round(seg / 60)
+  return `${m} min`
 }
 
 export function Disparos() {
@@ -105,6 +121,15 @@ export function Disparos() {
 
   const falhas = itens.filter((i) => i.status === 'falha').length
   const pulados = itens.filter((i) => i.status === 'pulado').length
+  const dispAberto = lista.find((c) => c.id === abertoId) || null
+  const cont = {
+    total: itens.length,
+    enviado: itens.filter((i) => i.status === 'enviado').length,
+    enviando: itens.filter((i) => i.status === 'enviando').length,
+    pendente: itens.filter((i) => i.status === 'pendente').length,
+    falha: falhas,
+    pulado: pulados,
+  }
 
   return (
     <section>
@@ -231,6 +256,48 @@ export function Disparos() {
                 </button>
               )}
             </div>
+          </div>
+
+          {dispAberto && (
+            <div className="dispmeta">
+              <span className="mchip">📢 {MENCAO_LB[dispAberto.tipo_mencao] || dispAberto.tipo_mencao}</span>
+              <span className="mchip">
+                ⏱ {fmtInt(dispAberto.intervalo_seg)}
+                {dispAberto.jitter_seg ? ` · ±${fmtInt(dispAberto.jitter_seg)}` : ''}
+              </span>
+              <span className="mchip">{dispAberto.media_tipo ? `🖼 ${dispAberto.media_tipo}` : '💬 texto'}</span>
+              {dispAberto.iniciado_em && (
+                <span className="mchip">▶ {new Date(dispAberto.iniciado_em).toLocaleString('pt-BR')}</span>
+              )}
+              <span className="mchip">⏳ {dur(dispAberto.iniciado_em, dispAberto.concluido_em)}</span>
+            </div>
+          )}
+
+          <div className="dispcounters">
+            <span className="cnt c-total">
+              Total <b>{cont.total}</b>
+            </span>
+            <span className="cnt c-ok">
+              Enviados <b>{cont.enviado}</b>
+            </span>
+            {cont.enviando > 0 && (
+              <span className="cnt c-run">
+                Enviando <b>{cont.enviando}</b>
+              </span>
+            )}
+            <span className="cnt c-pend">
+              Pendentes <b>{cont.pendente}</b>
+            </span>
+            {cont.falha > 0 && (
+              <span className="cnt c-err">
+                Falhas <b>{cont.falha}</b>
+              </span>
+            )}
+            {cont.pulado > 0 && (
+              <span className="cnt c-skip">
+                Pulados <b>{cont.pulado}</b>
+              </span>
+            )}
           </div>
 
           {metrics && (
