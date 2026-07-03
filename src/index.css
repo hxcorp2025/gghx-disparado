@@ -163,6 +163,17 @@ input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); c
 .cnt.c-skip { background: var(--amber-tint); color: var(--amber); border-color: transparent; }
 .cnt.c-total b, .cnt.c-pend b { color: var(--txt); }
 
+/* ---------- modal ---------- */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.62); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 120; animation: modalfade 0.12s ease; }
+.modal { background: var(--surface); border: 1px solid var(--line2); border-radius: var(--r-card); width: 100%; max-width: 660px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55); }
+.modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 17px 20px; border-bottom: 1px solid var(--line); }
+.modal-body { padding: 16px 20px 20px; overflow-y: auto; }
+@keyframes modalfade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* card clicável (abre modal) */
+.statcard.clickable { cursor: pointer; }
+.statcard.clickable:hover { border-color: var(--line3); }
+
 /* ---------- forms ---------- */
 .field { margin-bottom: 16px; }
 .field label { display: block; margin-bottom: 7px; font-weight: 550; font-size: 13px; color: var(--txt); }

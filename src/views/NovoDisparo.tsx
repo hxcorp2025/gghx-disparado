@@ -138,6 +138,8 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
       media_url: mediaUrl,
       group_ids: groupIds,
       subjects,
+      // vínculo com a campanha (lista) de origem, quando o disparo veio de uma
+      lista_id: fonte === 'campanha' ? campanhaId : null,
       ...(FEATURES.multiconta ? { conta_id: conta } : {}),
     }
 

@@ -120,6 +120,7 @@ export type NovoDisparo = {
   group_ids: string[]
   subjects: Record<string, string | null>
   conta_id?: string // só enviado quando FEATURES.multiconta (senão a coluna nem existe)
+  lista_id?: number | null // campanha (lista) de origem, quando o disparo veio de uma
 }
 
 // cria o disparo + itens e chama o motor. Retorna o id + se o motor confirmou o start.
@@ -137,6 +138,7 @@ export async function criarEDisparar(d: NovoDisparo): Promise<{ id: number; star
       status: 'rascunho',
       total: d.group_ids.length,
       ...(d.conta_id ? { conta_id: d.conta_id } : {}),
+      ...(d.lista_id ? { lista_id: d.lista_id } : {}),
     })
     .select('id')
     .single()
@@ -182,6 +184,7 @@ export async function agendarDisparo(d: NovoDisparo, scheduledAtISO: string): Pr
       scheduled_at: scheduledAtISO,
       total: d.group_ids.length,
       ...(d.conta_id ? { conta_id: d.conta_id } : {}),
+      ...(d.lista_id ? { lista_id: d.lista_id } : {}),
     })
     .select('id')
     .single()
@@ -222,6 +225,31 @@ export async function getDisparoMetrics(disparoId: number): Promise<DisparoMetri
     entregues: Number(r.entregues ?? 0),
     lidas: Number(r.lidas ?? 0),
   }
+}
+
+export type DispPorCampanha = {
+  lista_id: number | null
+  campanha: string
+  disparos: number
+  enviadas: number
+  entregues: number
+  lidas: number
+  ultimo: string | null
+}
+
+// agregado de disparos agrupados por campanha (lista de origem). RPC definer.
+export async function disparosPorCampanha(): Promise<DispPorCampanha[]> {
+  const { data, error } = await sb.rpc('gghx_disparos_por_campanha')
+  if (error) throw error
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    lista_id: r.lista_id == null ? null : Number(r.lista_id),
+    campanha: String(r.campanha ?? '(sem campanha)'),
+    disparos: Number(r.disparos ?? 0),
+    enviadas: Number(r.enviadas ?? 0),
+    entregues: Number(r.entregues ?? 0),
+    lidas: Number(r.lidas ?? 0),
+    ultimo: (r.ultimo as string) ?? null,
+  }))
 }
 
 // ===== controle de disparo (pausar / cancelar / retomar / reenviar) =====
