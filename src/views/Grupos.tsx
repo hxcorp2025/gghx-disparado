@@ -33,7 +33,9 @@ export function Grupos() {
     setSyncing(true)
     try {
       const j = await syncGrupos()
-      toast('Sincronizado: ' + (j.grupos != null ? j.grupos : '?') + ' grupos')
+      const pessoasTxt = j.pessoas != null ? ' · ' + j.pessoas.toLocaleString('pt-BR') + ' pessoas' : ''
+      const falhasTxt = j.falhas_leitura ? ' (' + j.falhas_leitura + ' sem leitura)' : ''
+      toast('Sincronizado: ' + (j.grupos != null ? j.grupos : '?') + ' grupos' + pessoasTxt + falhasTxt)
       await reloadGrupos()
     } catch {
       toast('Erro ao sincronizar', true)
@@ -111,7 +113,13 @@ export function Grupos() {
         </div>
         <div className="row">
           <button className="btn ghost sm" disabled={syncing} onClick={doSync}>
-            {syncing ? <span className="spin" /> : 'Sincronizar grupos'}
+            {syncing ? (
+              <>
+                <span className="spin" /> Lendo grupos e participantes...
+              </>
+            ) : (
+              'Sincronizar grupos'
+            )}
           </button>
           <button className="btn ghost sm" onClick={salvarComoCampanha}>
             Salvar como campanha

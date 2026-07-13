@@ -51,7 +51,12 @@ export async function listGrupos(): Promise<Grupo[]> {
   return (data ?? []) as Grupo[]
 }
 
-export async function syncGrupos(): Promise<{ grupos?: number }> {
+export async function syncGrupos(): Promise<{
+  grupos?: number
+  pessoas?: number
+  participantes_lidos?: number
+  falhas_leitura?: number
+}> {
   const r = await fetch(CONFIG.N8N_SYNC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
