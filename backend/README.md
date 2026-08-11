@@ -13,6 +13,52 @@ App no ar em send.hx-corp.com. Deploy do frontend: push na `main` → GitHub Act
 - ⏳ **Signup público:** desligar no painel Supabase (Auth → Providers). Management API bloqueia no auto-mode.
 - ⏳ **Rotacionar service_role:** coordenado (re-bakar n8n de vários projetos).
 
+## 0. Instâncias Evolution (11/08/2026) — a aba Conexão saiu da Z-API
+
+A aba **Conexão** não fala mais com a Z-API. Ela conecta números na **nossa Evolution**
+(`https://evolution.hx-corp.com`, v2.3.7) por uma camada no próprio Postgres. Frontend:
+`src/views/Conexao.tsx` + `src/lib/evoDb.ts`. A `conexaoCall()` do `db.ts` foi removida
+(o workflow `HX-gghx-conexao` segue existindo, mas nada no app o chama).
+
+**Contrato:** o app NUNCA faz HTTP pra Evolution. `evo_pedir()` só **enfileira**; o worker
+(`service_role`) executa em até ~10s e grava o resultado. Motivo: o papel `authenticated` tem
+`statement_timeout` de 8s e `POST /instance/create` estoura isso — quando tentamos direto, a
+transação deu rollback **com a instância já criada do outro lado** (órfã).
+
+| Migration | O que faz |
+|---|---|
+| `evo_api_helper` + `evo_api_timeout_maior` | `evo_api()` — HTTP pra Evolution, chave do Vault, curl 30s. **Só postgres/service_role** |
+| `evo_painel_instancias` | `evo_instancias`, `evo_fila` + RPCs `evo_pedir()` / `evo_painel()` (allowlist + papel admin) |
+| `evo_worker` + `evo_worker_endurecido` + `evo_worker_acao_grupos` | worker: criar, conectar (QR), estado, logout, deletar, sincronizar, proxy, grupos |
+| `evo_mascarar_payload_robusto` | tira credencial de dentro do payload em qualquer nível (token/apikey/password/uri/secret) |
+| `evo_warmup_e_limites` | `evo_chip_politica`, `evo_envio_log`, `evo_teto_hoje()`, `evo_pode_enviar()`, view `evo_chips_saude` |
+| `evo_grupos_leitura` | `evo_grupos` + `evo_processar_grupos()` (marca `sumiu_em` quem some da varredura) |
+| `evo_vigia_itens_em_erro` | `evo_vigia_erros()` — alerta quando a fila acumula erro |
+
+**Crons:** `evo_worker_10s` (#122, a cada **10 segundos** — o QR do WhatsApp vale ~1 min, com cron
+de 1/min o código venceria antes de aparecer na tela) · `evo_sync_5min` (#128, */5, poda a fila e
+pede `sincronizar` com guarda de duplicata) · `evo_grupos_6h` (#126, 25 */6) ·
+`evo_vigia_erros_2h` (#129, 15 */2).
+
+### 🔴 Antes de mexer em qualquer coisa `evo_*`
+
+Este subsistema **já foi auditado e teve os grants fechados** (11/08). Se você recriar uma função
+ou uma view aqui, ela **nasce aberta de novo** — foi assim que número de chip e GID de grupo ficaram
+legíveis pela chave anon por algumas horas. Regras que valem sempre:
+
+- Função nova ou recriada → `revoke all ... from public, anon, authenticated` + grant seletivo.
+- **View nova → `revoke` também.** View de dono `postgres` sem `security_invoker` **fura a RLS** da
+  tabela de baixo, mesmo com a tabela perfeitamente trancada. O app lê por RPC com gate, nunca
+  por view.
+- Ação destrutiva (criar/desconectar/apagar/proxy) exige `papel='admin'` dentro do SQL. Esconder o
+  botão no front não é permissão: este repo é público e publica o nome da RPC.
+- Nada de nome de instância cru na URL: é entrada de terceiro, valida com regex antes.
+- Conferir depois: `select has_table_privilege('anon','public.<view>','SELECT')`.
+
+**Pendente:** o motor de ENVIO ainda não roda na Evolution (o disparo em massa segue no motor n8n
+`0W9yI1VhSE05G3HN` via Z-API). Quando for escrito, ele **tem que gravar em `evo_envio_log` na mesma
+transação do envio**, senão `evo_pode_enviar()` vira guarda-corpo que falha em silêncio.
+
 O texto abaixo é o runbook original (histórico / passos que já foram executados p/ agendamento).
 
 ---

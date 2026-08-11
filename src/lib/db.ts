@@ -357,16 +357,10 @@ export async function saudeChip(): Promise<SaudeChip[]> {
   return (data ?? []) as SaudeChip[]
 }
 
-// ===== conexão (status/qr/disconnect via n8n) =====
-export async function conexaoCall(action: 'status' | 'qr' | 'disconnect'): Promise<Record<string, unknown>> {
-  const t = await token()
-  const r = await fetch(CONFIG.N8N_CONEXAO, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, access_token: t }),
-  })
-  return r.json().catch(() => ({ ok: false, error: 'resposta inválida' }))
-}
+// ===== conexão =====
+// conexaoCall() (status/qr/disconnect da Z-API via n8n) foi REMOVIDA em 11/08/2026:
+// a aba Conexão agora conecta números pela nossa Evolution, via src/lib/evoDb.ts.
+// O workflow HX-gghx-conexao e CONFIG.N8N_CONEXAO seguem existindo, mas nada no app os chama.
 
 // ===== EXTRAS (ações em massa nas comunidades) =====
 export type Acao = {
