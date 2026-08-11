@@ -279,7 +279,10 @@ export function Conexao() {
                   Desconectar
                 </button>
               )}
-              {admin && apagando !== i.nome && (
+              {/* Apagar so aparece com o numero DESCONECTADO. Em 11/08 uma instancia conectada foi
+                  apagada por engano no lugar de uma desconectada: o token dela morreu junto e levou
+                  5 workflows do n8n a 401. Desconectar primeiro forca o olho no card certo. */}
+              {admin && apagando !== i.nome && i.estado !== 'open' && (
                 <button className="btn danger sm" disabled={ocupado}
                   onClick={() => { setApagando(i.nome); setConfirmacao(''); setErro(null) }}>
                   Apagar
@@ -291,7 +294,8 @@ export function Conexao() {
               <div style={{ marginTop: 12 }}>
                 <p className="mut" style={{ fontSize: 12.5 }}>
                   <b>Desconectar {i.nome}?</b> O número para de enviar na hora e só volta quando
-                  alguém estiver com o celular na mão pra ler o QR de novo.
+                  alguém estiver com o celular na mão pra ler o QR de novo. Desconectar é
+                  reversível e <b>não</b> mata o token, ao contrário de apagar.
                 </p>
                 <div className="row">
                   <button className="btn danger sm" disabled={ocupado}
@@ -310,9 +314,11 @@ export function Conexao() {
             {apagando === i.nome && (
               <div style={{ marginTop: 12 }}>
                 <p className="mut" style={{ fontSize: 12.5 }}>
-                  <b>Apagar remove a instância da Evolution e não tem volta.</b> Se ela estiver
-                  conectada, o número cai e o histórico dela some. Pra confirmar, digite
-                  {' '}<b>{i.nome}</b> abaixo.
+                  <b>Apagar remove a instância da Evolution e não tem volta.</b> O histórico e os
+                  grupos lidos dela somem, e o <b>token dela morre</b>: se algum fluxo do n8n
+                  estiver usando esse token em vez da chave global, ele passa a dar erro 401.
+                  Recriar com o mesmo nome gera um token NOVO, não o antigo.
+                  Pra confirmar, digite <b>{i.nome}</b> abaixo.
                 </p>
                 <div className="field" style={{ maxWidth: 320 }}>
                   <input aria-label={`digite ${i.nome} pra confirmar`} placeholder={i.nome}
