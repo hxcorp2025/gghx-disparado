@@ -4,7 +4,11 @@
    Elevação por luminância + borda hairline (sem sombra no dark).
    Acento contido. Texto off-white. Densidade de ferramenta.
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Fonte do sistema, sem baixar nada. A Inter vinha do Google por @import: requisicao
+   bloqueante ao Google em todo carregamento e, como a equipe usa Windows, -apple-system
+   e SF Pro nunca resolviam, entao a Inter era o que REALMENTE renderizava. Com system-ui
+   o Windows 11 entrega Segoe UI Variable, que tem optical sizing de verdade (o
+   font-optical-sizing: auto do body so faz efeito com fonte variavel). Zero rede. */
 
 :root {
   /* superfícies em camadas de luminância (nunca preto puro) */
@@ -40,7 +44,9 @@
      hesitacao. Uma curva so, usada em tudo, porque nao tem transicao reversivel aqui. */
   --curva: cubic-bezier(0.2, 0, 0, 1);
   --t-fast: 120ms var(--curva); --t: 160ms var(--curva);
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+  /* system-ui PRIMEIRO: e ele que resolve no Windows (Segoe UI Variable) e no Android.
+     As faces da Apple ficam depois pra quem abrir no Mac ou iPhone. */
+  --font: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
   --sh-float: 0 12px 34px -8px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
@@ -210,8 +216,13 @@ input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); c
 .listrow:hover { border-color: var(--line2); background: var(--surface2); }
 
 /* ---------- toast (flutua → sombra ok) ---------- */
-.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--overlay); border: 1px solid var(--line2); padding: 12px 19px; border-radius: 11px; z-index: 60; box-shadow: var(--sh-float); font-weight: 500; animation: toastin 0.26s var(--t); border-left: 3px solid var(--accent); }
-.toast.err { border-left-color: var(--red); }
+/* A cor DIZ o desfecho (verde = deu certo, vermelho = falhou), entao ela fica.
+   O que saiu foi a barra vertical de 3px na borda esquerda: alem de ser o tell mais
+   reconhecivel de UI feita por IA, ela usava a lateral pra dizer algo que a borda
+   inteira diz melhor. Agora o contorno todo carrega o estado, com um brilho fraco
+   por baixo pra separar do fundo sem precisar de slab. */
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--overlay); border: 1px solid var(--accent); padding: 12px 19px; border-radius: 11px; z-index: 60; box-shadow: var(--sh-float), 0 0 0 4px var(--accent-tint); font-weight: 500; animation: toastin 0.26s var(--t); }
+.toast.err { border-color: var(--red); box-shadow: var(--sh-float), 0 0 0 4px var(--red-tint); }
 @keyframes toastin { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 /* ---------- spinner + skeleton ---------- */

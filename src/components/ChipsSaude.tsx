@@ -29,8 +29,14 @@ function Barra({ n, total }: { n: number; total: number | null }) {
         </span>
         <span style={{ fontSize: 12, fontWeight: 600, color: cor }}>{pct}%</span>
       </div>
-      <div style={{ height: 7, borderRadius: 4, background: 'var(--surface2)', overflow: 'hidden' }}>
-        <div style={{ width: pct + '%', height: '100%', background: cor, transition: 'width .3s ease' }} />
+      {/* escala em vez de largura: animar width recalcula layout a cada frame, e esta
+          barra atualiza sozinha junto com o polling da tela. transform roda no compositor. */}
+      <div style={{ height: 7, borderRadius: 4, background: 'var(--surface2)', overflow: 'hidden' }}
+           role="meter" aria-valuenow={n} aria-valuemin={0} aria-valuemax={total}
+           aria-label={`${n} de ${total} enviadas hoje`}>
+        <div style={{ width: '100%', height: '100%', background: cor,
+                      transform: `scaleX(${pct / 100})`, transformOrigin: 'left',
+                      transition: 'transform 300ms var(--curva)' }} />
       </div>
     </div>
   )
