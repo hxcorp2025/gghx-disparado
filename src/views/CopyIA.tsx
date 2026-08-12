@@ -238,17 +238,20 @@ export function CopyIA() {
                 </tr>
               </thead>
               <tbody>
-                {fila.slice(0, 8).map((f) => (
+                {fila.slice(0, 8).map((f) => {
+                  const brief = f.briefing ?? ''
+                  return (
                   <tr key={f.id}>
                     <td style={{ maxWidth: 340 }}>
-                      {f.briefing.length > 90 ? f.briefing.slice(0, 90) + '...' : f.briefing}
+                      {brief.length > 90 ? brief.slice(0, 90) + '...' : brief}
                       {f.ultimo_erro && <div className="st-falha" style={{ fontSize: 12 }}>{f.ultimo_erro}</div>}
                     </td>
                     <td><span className={'badge ' + st(f.status).badge}>{st(f.status).txt}</span></td>
                     <td>{f.variacoes} / {f.n_variacoes}</td>
                     <td className="mut">{new Date(f.criado_em).toLocaleString('pt-BR')}</td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

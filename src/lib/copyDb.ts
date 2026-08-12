@@ -9,7 +9,7 @@ import { sb } from './supabase'
 export type CopyFila = {
   id: number
   projeto: string
-  briefing: string
+  briefing: string | null
   n_variacoes: number
   status: string // pending | doing | ok | error
   tentativas: number

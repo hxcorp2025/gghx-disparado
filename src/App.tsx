@@ -7,6 +7,7 @@ import { AppProvider } from './state'
 import { Login } from './components/Login'
 import { Toast } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
+import ErrorBoundary from './components/ErrorBoundary'
 import { Estatisticas } from './views/Estatisticas'
 import { Grupos } from './views/Grupos'
 import { Campanhas } from './views/Campanhas'
@@ -111,14 +112,16 @@ export default function App() {
             </div>
           </div>
           <main>
-            {view === 'estatisticas' && <Estatisticas />}
-            {view === 'grupos' && <Grupos />}
-            {view === 'campanhas' && <Campanhas goTo={setView} />}
-            {view === 'novo' && <NovoDisparo goTo={setView} />}
-            {view === 'copyia' && <CopyIA />}
-            {view === 'disparos' && <Disparos />}
-            {view === 'extras' && <Extras />}
-            {view === 'conexao' && <Conexao />}
+            <ErrorBoundary key={view}>
+              {view === 'estatisticas' && <Estatisticas />}
+              {view === 'grupos' && <Grupos />}
+              {view === 'campanhas' && <Campanhas goTo={setView} />}
+              {view === 'novo' && <NovoDisparo goTo={setView} />}
+              {view === 'copyia' && <CopyIA />}
+              {view === 'disparos' && <Disparos />}
+              {view === 'extras' && <Extras />}
+              {view === 'conexao' && <Conexao />}
+            </ErrorBoundary>
           </main>
         </div>
       </div>
