@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual do Gestor de Grupos HX</title>
+<style>
+  :root{
+    --bg:#0e1113; --surface:#15191c; --surface2:#1b2024; --line:#252b31; --line2:#333b43;
+    --txt:#e7ecef; --mut:#93a0a9; --accent:#3ecf8e; --amber:#e0a83c; --red:#e5695f;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+    font-size:15px; line-height:1.6; letter-spacing:.01em; font-optical-sizing:auto;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:40px 20px 90px}
+  h1{font-size:27px; letter-spacing:-.025em; margin:0 0 6px}
+  .sub{color:var(--mut); margin:0 0 34px}
+  h2{
+    font-size:19px; letter-spacing:-.02em; margin:44px 0 6px;
+    padding-top:22px; border-top:1px solid var(--line);
+  }
+  h3{font-size:15.5px; margin:24px 0 6px}
+  p{margin:0 0 12px}
+  ol,ul{margin:0 0 12px; padding-left:22px}
+  li{margin:0 0 7px}
+  code{
+    background:var(--surface2); border:1px solid var(--line); border-radius:5px;
+    padding:1px 6px; font-size:13px; font-variant-numeric:tabular-nums;
+  }
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:16px 0}
+  .aviso{border-color:var(--amber)}
+  .perigo{border-color:var(--red)}
+  .bom{border-color:var(--accent)}
+  .card .t{font-weight:650; margin-bottom:5px; display:flex; align-items:center; gap:8px}
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14px}
+  th,td{text-align:left; padding:9px 11px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{color:var(--mut); font-size:11px; text-transform:uppercase; letter-spacing:.06em}
+  td{font-variant-numeric:tabular-nums}
+  .idx{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:8px}
+  .idx a{display:block; color:var(--txt); text-decoration:none; padding:5px 0; border-bottom:1px solid var(--line)}
+  .idx a:last-child{border-bottom:none}
+  .idx a:hover{color:var(--accent)}
+  .mut{color:var(--mut)}
+  .voltar{display:inline-block; margin-bottom:26px; color:var(--accent); text-decoration:none; font-weight:550}
+  @media (prefers-reduced-transparency:reduce){ .card{background:var(--surface)} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<a class="voltar" href="/">&larr; Voltar pro app</a>
+
+<h1>Manual do Gestor de Grupos HX</h1>
+<p class="sub">Como usar cada aba, e principalmente <b>o que o app faz sozinho</b> pra proteger o chip.</p>
+
+<div class="idx">
+  <a href="#mudou">O que mudou em 11/08 (leia isto primeiro)</a>
+  <a href="#conexao">Conexão: ligar um número</a>
+  <a href="#limites">Limites e aquecimento do chip</a>
+  <a href="#grupos">Grupos e os que são pulados sozinho</a>
+  <a href="#copy">Copy com IA</a>
+  <a href="#disparo">Novo disparo e Disparos</a>
+  <a href="#ferramentas">Ferramentas</a>
+  <a href="#travou">Quando algo não sai: por onde olhar</a>
+</div>
+
+<h2 id="mudou">O que mudou em 11/08</h2>
+<p>
+  O app <b>parou de usar a Z-API</b> e passou a usar a nossa própria Evolution. Isso mudou coisa
+  que você usa todo dia:
+</p>
+<ul>
+  <li>Agora <b>você mesmo conecta números</b> pela aba Conexão, e pode ter vários ao mesmo tempo.</li>
+  <li>Cada número tem <b>limite e aquecimento</b>, e o disparo respeita isso sozinho.</li>
+  <li>Grupo que já recusou vira <b>pulado automático</b>, sem gastar tentativa.</li>
+  <li>Nasceu a aba <b>Copy com IA</b>, que escreve variações da mensagem.</li>
+</ul>
+<div class="card aviso">
+  <div class="t">⚠️ Por que tanta variação de texto</div>
+  <p style="margin:0">
+    A investigação das comunidades derrubadas mostrou que <b>o que mata grupo é o padrão do
+    conteúdo</b>: a mesma mensagem repetida, sempre com o mesmo link, marcando todo mundo. Não é o
+    volume. Por isso o app insiste tanto em variar a copy e em rotacionar domínio.
+  </p>
+</div>
+
+<h2 id="conexao">Conexão: ligar um número</h2>
+<ol>
+  <li>Abre a aba <b>Conexão</b> no computador (o QR precisa aparecer numa tela pra outra ler).</li>
+  <li>Clica em <b>Novo número</b> e dá um nome curto, sem espaço. Esse nome <b>não muda depois</b>.</li>
+  <li>Clica em <b>Criar e gerar QR</b> e espera uns 10 segundos.</li>
+  <li>No celular: <b>WhatsApp, Configurações, Aparelhos conectados, Conectar aparelho</b>.</li>
+  <li>O card vira <b>Conectado</b> sozinho. Não precisa recarregar a página.</li>
+</ol>
+<p class="mut">
+  O QR vale mais ou menos 1 minuto. Se vencer, é só clicar em Gerar QR de novo.
+</p>
+<div class="card perigo">
+  <div class="t">🚫 Apagar não é desconectar</div>
+  <p>
+    <b>Desconectar</b> é reversível: o número para de enviar e volta quando alguém ler o QR.
+  </p>
+  <p style="margin:0">
+    <b>Apagar</b> destrói a instância. Some o histórico, somem os grupos lidos e <b>morre a senha
+    interna dela</b>. Se algum fluxo automático usava aquela senha, ele para de funcionar, e
+    recriar com o mesmo nome <b>não devolve</b> a senha antiga. Por isso o botão Apagar só aparece
+    com o número já desconectado. Isso aconteceu de verdade em 11/08 e quebrou 5 automações.
+  </p>
+</div>
+
+<h2 id="limites">Limites e aquecimento do chip</h2>
+<p>
+  Ainda na aba Conexão, cada número tem um bloco de <b>saúde e limites</b>. Ele mostra quanto já
+  saiu hoje, quanto saiu na última hora, quantas falhas deu em 24h e, o mais importante,
+  <b>o motivo exato de estar travado agora</b>.
+</p>
+<table>
+  <tr><th>O que aparece</th><th>O que significa</th></tr>
+  <tr><td>Sem limites definidos</td><td>O número <b>não dispara</b>. É proposital: chip sem regra não entra em campanha.</td></tr>
+  <tr><td>Aquecendo, dia 3 de 7</td><td>O teto sobe sozinho a cada dia. Chip novo mandando muito no primeiro dia é o jeito mais rápido de perder ele.</td></tr>
+  <tr><td>Fora da janela</td><td>Está fora do horário liberado. Volta sozinho no horário.</td></tr>
+  <tr><td>Teto do dia atingido</td><td>O disparo <b>pausa sozinho</b> e continua no dia seguinte.</td></tr>
+  <tr><td>Livre pra enviar agora</td><td>Pode disparar.</td></tr>
+</table>
+<div class="card">
+  <div class="t">Por que o intervalo é uma faixa e não um número</div>
+  <p style="margin:0">
+    Você define um mínimo e um máximo (por exemplo 60s e 90s) e o app sorteia um valor a cada
+    envio. Intervalo cravado, sempre igual, é assinatura de robô: nenhuma pessoa manda mensagem de
+    60 em 60 segundos exatos.
+  </p>
+</div>
+<p class="mut">Só o Matheus pode mexer nesses limites.</p>
+
+<h2 id="grupos">Grupos e os que são pulados sozinho</h2>
+<p>
+  <b>Sincronizar grupos</b> lê a lista pela Evolution. Só entram grupos de número que é
+  <b>chip de disparo</b>: se você conectar um celular pessoal, os grupos dele não vão poluir a
+  lista de campanha.
+</p>
+<div class="card bom">
+  <div class="t">✅ Grupo queimado é pulado sozinho</div>
+  <p>
+    Se um grupo <b>recusou 2 vezes seguidas</b> sem aceitar nenhum envio depois, o app marca ele e
+    <b>não tenta mais</b>. Você pode deixar ele na campanha à vontade.
+  </p>
+  <p style="margin:0">
+    O motivo: insistir onde já recusou é o que <b>queima o chip</b>. Cada tentativa recusada é mais
+    um sinal pro WhatsApp de que o número está batendo onde não deve. Se o grupo voltar e aceitar
+    um envio, <b>a ficha limpa sozinha</b>.
+  </p>
+</div>
+
+<h2 id="copy">Copy com IA</h2>
+<p>
+  Aba nova. Você escreve o <b>briefing</b> (o que a mensagem precisa dizer), escolhe quantas
+  variações quer e clica em Gerar. Elas aparecem em menos de 1 minuto pra você aprovar ou reprovar
+  uma a uma.
+</p>
+<ul>
+  <li>As <b>regras da casa já entram sozinhas</b> no pedido. Não precisa escrever que não pode travessão.</li>
+  <li>Variação que quebra regra <b>não deixa aprovar</b>, nem se você tentar. Só reprovar e pedir outra.</li>
+  <li>O card do topo mostra o padrão dos disparos de hoje: quantos por cento marcam todo mundo,
+      quantos levam link e <b>quantos domínios diferentes existem</b>.</li>
+</ul>
+<p class="mut">
+  Quanto menos domínios diferentes, mais fácil o WhatsApp ligar um grupo no outro e derrubar a
+  comunidade inteira. Esse número no topo é o que mais importa ali.
+</p>
+
+<h2 id="disparo">Novo disparo e Disparos</h2>
+<p>Nada mudou no jeito de criar. O que mudou é o que acontece depois de clicar em iniciar:</p>
+<ul>
+  <li>O disparo <b>entra numa fila</b> e o primeiro envio sai em até 15 segundos.</li>
+  <li>Se o app recusar, ele <b>diz o motivo</b> (fora da janela, teto do chip, outro disparo rodando
+      no mesmo número). Antes só aparecia "Falha".</li>
+  <li>Um número só roda <b>um disparo por vez</b>. Dois ao mesmo tempo no mesmo chip é pedido de ban.</li>
+</ul>
+<table>
+  <tr><th>O app pausa sozinho quando</th><th>O que fazer</th></tr>
+  <tr><td>Um grupo devolve erro de excesso</td><td>Espera. O chip está sendo segurado pelo WhatsApp.</td></tr>
+  <tr><td>3 grupos seguidos recusam</td><td>Avisa o Matheus. Pode ser o chip, não os grupos.</td></tr>
+  <tr><td>O teto do dia acaba</td><td>Nada. Continua amanhã.</td></tr>
+</table>
+<p>
+  Grupo <b>pulado</b> não é falha: é grupo sem lista de participantes lida, ou grupo queimado.
+  Dá pra reenviar só nos pulados depois, pelo botão da tela de detalhe.
+</p>
+
+<h2 id="ferramentas">Ferramentas</h2>
+<p>
+  As 6 operações em massa (nome, descrição, foto, adicionar membro, promover e rebaixar admin)
+  continuam iguais, agora pela Evolution.
+</p>
+<p>
+  Elas andam <b>devagar de propósito</b>, uma a cada poucos minutos. Mexer em muitos grupos em
+  sequência é justamente o comportamento que chama atenção.
+</p>
+<p class="mut">
+  Pra promover ou rebaixar admin, <b>o nosso número precisa ser admin do grupo</b>.
+</p>
+
+<h2 id="travou">Quando algo não sai: por onde olhar</h2>
+<ol>
+  <li><b>Conexão</b>: o número está <b>Conectado</b>? Se está desconectado, o resto não anda.</li>
+  <li>Ainda na Conexão, o bloco de limites diz <b>Travado agora</b>? Ele te dá o motivo escrito.</li>
+  <li><b>Grupos</b>: o grupo está na lista de <b>pulados sozinho</b>?</li>
+  <li><b>Disparos</b>: o disparo está <b>Pausado</b>? A tela mostra por quê.</li>
+  <li>Se nada disso explicar, chama o Matheus com o <b>nome do disparo e a hora</b>. Tudo fica registrado.</li>
+</ol>
+
+<p class="mut" style="margin-top:40px; padding-top:18px; border-top:1px solid var(--line)">
+  Atualizado em 11/08/2026, quando o app saiu da Z-API.
+</p>
+
+</div>
+</body>
+</html>

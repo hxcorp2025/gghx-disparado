@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { BarChart3, Users, FolderOpen, Send, Radio, QrCode, LogOut, Wrench, Sparkles } from 'lucide-react'
+import { BarChart3, Users, FolderOpen, Send, Radio, QrCode, LogOut, Wrench, Sparkles, BookOpen } from 'lucide-react'
 import { sb } from './lib/supabase'
 import { identifyUser, resetAnalytics } from './lib/analytics'
 import { AppProvider } from './state'
@@ -102,7 +102,13 @@ export default function App() {
               <current.Icon size={18} />
               {current.label}
             </div>
-            <span className="kbd" title="Abrir comandos">⌘K</span>
+            <div className="row" style={{ gap: 10 }}>
+              <a href="/manual.html" target="_blank" rel="noreferrer" className="btn ghost sm"
+                 style={{ textDecoration: 'none' }}>
+                <BookOpen size={15} /> Manual
+              </a>
+              <span className="kbd" title="Abrir comandos">⌘K</span>
+            </div>
           </div>
           <main>
             {view === 'estatisticas' && <Estatisticas />}
