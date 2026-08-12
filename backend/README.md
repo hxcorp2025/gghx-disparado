@@ -55,9 +55,45 @@ legíveis pela chave anon por algumas horas. Regras que valem sempre:
 - Nada de nome de instância cru na URL: é entrada de terceiro, valida com regex antes.
 - Conferir depois: `select has_table_privilege('anon','public.<view>','SELECT')`.
 
-**Pendente:** o motor de ENVIO ainda não roda na Evolution (o disparo em massa segue no motor n8n
-`0W9yI1VhSE05G3HN` via Z-API). Quando for escrito, ele **tem que gravar em `evo_envio_log` na mesma
-transação do envio**, senão `evo_pode_enviar()` vira guarda-corpo que falha em silêncio.
+## 0.1 Motor de DISPARO na Evolution (11/08/2026) — o v3.1 portado pro banco
+
+O disparo não depende mais do motor n8n em Z-API. A lógica anti-ban inteira do v3.1 vive agora
+em Postgres, e o envio sai pela nossa Evolution.
+
+| Objeto | Papel |
+|---|---|
+| `evo_enviar_grupo(inst, gid, texto, mencao, forcar)` | envia + **grava `evo_envio_log` na MESMA transação** |
+| `evo_participantes(inst, gid)` | menção fantasma, já sem opt-out |
+| `evo_spintax(texto, grupo)` | `{a\|b\|c}` + `[grupo]` |
+| `gghx_disparo_tick()` | o motor: 1 grupo por tick, cron **130 a cada 15s** |
+| `gghx_disparo_recupera_orfaos()` | item preso em `enviando` volta pra fila, cron **131 (*/5)** |
+| `gghx_iniciar_disparo(id)` | gatilho do painel: **roteia por conta** e devolve o motivo da recusa |
+| `gghx_gid_evo(group_id)` | `1203...-group` (como o app guarda) → `1203...@g.us` (como a API quer) |
+
+**Anti-ban preservado do v3.1:** claim atômico · lock 1 campanha por chip · intervalo clampado
+5-180s + jitter · **429 pausa na hora** · **3× 403 seguidos pausam** · 404 segue · grupo sem lista
+é **PULADO** (nunca cai pra `@all`, que suja a copy e é assinatura de ban) · sucesso zera o contador.
+
+**Cutover sem big-bang:** `gghx_contas.evo_instancia` decide. Conta com instância = motor novo;
+conta legada (`vault_instance`) = motor n8n. Os dois convivem até o último chip sair da Z-API.
+A constraint `gghx_contas_uma_stack` impede uma conta ser as duas coisas ou nenhuma.
+
+### 🔴 Armadilhas que este motor já paga
+
+- **Nono dígito.** No grupo, BR aparece como `555196064788@s.whatsapp.net`, **sem o 9**. Menção
+  montada a partir do número "certo" de 13 dígitos **não marca ninguém e não dá erro**. Por isso
+  `evo_participantes` devolve o `phoneNumber` **cru da API**, nunca remontado.
+- **`mentionsEveryOne: false` marca todo mundo** na 2.3.7 (o fix é do PR #2470, linha 2.4). O campo
+  só entra no payload quando o valor é `true`.
+- **LID resolvido:** a 2.3.7 devolve os dois ids no participante
+  (`{"id":"...@lid","phoneNumber":"...@s.whatsapp.net"}`). Menção parcial testada no rig e
+  confirmada no `contextInfo` da resposta.
+- **Sem `sleep` no banco.** O intervalo é respeitado comparando com a hora do último envio, não
+  segurando conexão dormindo como fazia o Code node.
+
+**Pendente:** chip de disparo DEDICADO (hoje só existem o pessoal do Matheus e o `cel_sorteio`
+desconectado) + política de warmup dele + gate `revisao-entrega` antes do primeiro disparo real
+em grupo de campanha.
 
 O texto abaixo é o runbook original (histórico / passos que já foram executados p/ agendamento).
 
