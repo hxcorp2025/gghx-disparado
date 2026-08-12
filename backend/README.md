@@ -91,9 +91,40 @@ A constraint `gghx_contas_uma_stack` impede uma conta ser as duas coisas ou nenh
 - **Sem `sleep` no banco.** O intervalo é respeitado comparando com a hora do último envio, não
   segurando conexão dormindo como fazia o Code node.
 
-**Pendente:** chip de disparo DEDICADO (hoje só existem o pessoal do Matheus e o `cel_sorteio`
-desconectado) + política de warmup dele + gate `revisao-entrega` antes do primeiro disparo real
-em grupo de campanha.
+## 0.2 O resto do app que a Z-API levou junto (11/08)
+
+A assinatura vencida da Z-API não parou só o disparo: deixou **5 botões mortos** espalhados, cada
+um numa tela diferente. Todos portados no mesmo dia:
+
+| Onde | Chamava | Agora |
+|---|---|---|
+| Aba **Conexão** | `HX-gghx-conexao` | camada `evo_*` (instâncias próprias) |
+| **Sincronizar grupos** | `HX-gghx-sync-grupos` | `gghx_sincronizar_grupos()` → `gghx_grupos_do_evo()` |
+| Aba **Ferramentas** (6 ops) | `HX-gghx-extras` | `gghx_acoes_tick()` + `gghx_acao_executar()`, cron 1min |
+| **Entraram/Saíram** (Estatísticas) | `HX-gghx-snapshot` | `gghx_snapshot_tick()`, cron */20 |
+| **Iniciar disparo** | `HX-gghx-disparar` | `gghx_disparo_tick()`, cron 15s |
+
+**Regra que nasceu do sync de grupos:** só entra grupo de instância com **conta de disparo ATIVA**
+(`join`, não `left join`). Sem isso, um chip pessoal conectado despeja os grupos de família na
+lista de escolha do disparo em massa. Aconteceu: 448 grupos, revertido com backup em
+`gghx_grupos_backup_2026_08_11`.
+
+**O snapshot cria BASELINE sem gerar movimento** na primeira leitura de cada grupo. Sem isso,
+estrear um grupo despejaria milhares de "entrou" falsos no gráfico de entradas/saídas.
+
+## 🔴 O único bloqueio de tudo isso: falta chip de disparo
+
+Toda a cadeia está construída e passa por um ponto só. Hoje: 60 grupos ativos, todos marcados
+`HxSend` (Z-API), e **nenhuma conta Evolution ativa** (só `evo_rig`, desligada de propósito depois
+do teste). Enquanto isso:
+
+- `gghx_disparo_tick` não tem campanha pra rodar
+- `gghx_snapshot_tick` lê 0 grupos (é o resultado correto, não bug)
+- `gghx_grupos_do_evo` insere 0 (é o que impede a contaminação)
+
+**Destravar:** Peterson conecta um chip pela aba Conexão → criar `gghx_contas` com
+`evo_instancia` apontando pra ele e `ativo=true` → definir a política de warmup na própria aba →
+sincronizar grupos → gate `revisao-entrega` → primeiro disparo real.
 
 O texto abaixo é o runbook original (histórico / passos que já foram executados p/ agendamento).
 
