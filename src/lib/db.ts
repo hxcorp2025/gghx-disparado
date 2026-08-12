@@ -434,13 +434,26 @@ export async function getAcaoItens(acaoId: number): Promise<AcaoItem[]> {
   if (error) throw error
   return (data ?? []) as AcaoItem[]
 }
-export async function chamarMotorExtras(acaoId: number): Promise<Response> {
+// Ferramentas (6 operacoes em massa). Mesmo cutover do disparo: a RPC roteia por conta.
+// O motor antigo (HX-gghx-extras) resolve credencial Z-API e morreu com a assinatura.
+export async function chamarMotorExtras(acaoId: number): Promise<MotorResp> {
+  const { data, error } = await sb.rpc('gghx_iniciar_acao', { p_acao: acaoId })
+  if (error) return { ok: false, erro: error.message }
+  const r = (data ?? {}) as MotorResp
+  if (r.motor !== 'zapi') return r
+
   const t = await token()
-  return fetch(CONFIG.N8N_EXTRAS, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ acao_id: acaoId, access_token: t }),
-  })
+  try {
+    const resp = await fetch(CONFIG.N8N_EXTRAS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acao_id: acaoId, access_token: t }),
+    })
+    return { ok: resp.ok, motor: 'zapi',
+             erro: resp.ok ? undefined : 'o motor antigo (Z-API) respondeu ' + resp.status }
+  } catch {
+    return { ok: false, motor: 'zapi', erro: 'não consegui falar com o motor antigo (Z-API)' }
+  }
 }
 export async function setAcaoStatus(acaoId: number, status: string): Promise<void> {
   const { error } = await sb.from('gghx_acoes').update({ status }).eq('id', acaoId)

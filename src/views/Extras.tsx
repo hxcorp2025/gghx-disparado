@@ -151,8 +151,8 @@ export function Extras() {
   }
   async function despausar(id: number) {
     await setAcaoStatus(id, 'pausada')
-    await chamarMotorExtras(id).catch(() => null)
-    toast('Retomando')
+    const r = await chamarMotorExtras(id).catch(() => null)
+    toast(r?.ok ? r.aviso ?? 'Retomando' : r?.erro ?? 'Não consegui retomar', !r?.ok)
     setTimeout(reloadAcoes, 3000)
   }
   async function cancelar(id: number) {
