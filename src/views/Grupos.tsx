@@ -33,9 +33,15 @@ export function Grupos() {
     setSyncing(true)
     try {
       const j = await syncGrupos()
-      const pessoasTxt = j.pessoas != null ? ' · ' + j.pessoas.toLocaleString('pt-BR') + ' pessoas' : ''
-      const falhasTxt = j.falhas_leitura ? ' (' + j.falhas_leitura + ' sem leitura)' : ''
-      toast('Sincronizado: ' + (j.grupos != null ? j.grupos : '?') + ' grupos' + pessoasTxt + falhasTxt)
+      if (!j.ok) {
+        toast(j.erro ?? 'Não consegui sincronizar', true)
+        return
+      }
+      const m = j.mesclados_agora ?? {}
+      const detalhe = m.novos || m.atualizados
+        ? ` (${m.novos ?? 0} novo(s), ${m.atualizados ?? 0} atualizado(s))`
+        : ''
+      toast((j.aviso ?? 'Sincronizando') + detalhe)
       await reloadGrupos()
     } catch {
       toast('Erro ao sincronizar', true)

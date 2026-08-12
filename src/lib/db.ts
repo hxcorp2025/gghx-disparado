@@ -51,18 +51,24 @@ export async function listGrupos(): Promise<Grupo[]> {
   return (data ?? []) as Grupo[]
 }
 
-export async function syncGrupos(): Promise<{
-  grupos?: number
-  pessoas?: number
-  participantes_lidos?: number
-  falhas_leitura?: number
-}> {
-  const r = await fetch(CONFIG.N8N_SYNC, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: '{}',
-  })
-  return r.json().catch(() => ({}))
+export type SyncGruposResp = {
+  ok?: boolean
+  erro?: string
+  aviso?: string
+  numeros_varrendo?: number
+  mesclados_agora?: { novos?: number; atualizados?: number; inativos?: number }
+}
+
+// Sincroniza a lista de grupos. Era um POST no HX-gghx-sync-grupos (n8n -> Z-API),
+// que morreu junto com a assinatura da Z-API. Agora pede a varredura pela Evolution:
+// a RPC so ENFILEIRA e o worker (cron de 10s) le os grupos; o merge pra gghx_grupos
+// roda na hora com o que ja foi lido, pra tela nao ficar parada esperando.
+// So entra grupo de numero com CONTA DE DISPARO ATIVA: chip pessoal conectado nao
+// contamina a lista (em 11/08 isso despejou 448 grupos pessoais aqui).
+export async function syncGrupos(): Promise<SyncGruposResp> {
+  const { data, error } = await sb.rpc('gghx_sincronizar_grupos')
+  if (error) return { ok: false, erro: error.message }
+  return (data ?? {}) as SyncGruposResp
 }
 
 // ===== CAMPANHAS (listas de grupos) =====
