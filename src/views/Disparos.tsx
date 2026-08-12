@@ -102,7 +102,9 @@ export function Disparos() {
   }
   async function retomarDraft(id: number) {
     const r = await chamarMotor(id).catch(() => null)
-    toast(r && r.ok ? 'Iniciado' : 'Falha', !(r && r.ok))
+    // o motor recusa por motivo real (fora da janela, teto do chip, outro disparo
+    // rodando no mesmo numero). Mostrar o motivo, "Falha" seco nao ensina nada.
+    toast(r?.ok ? r.aviso ?? 'Iniciado' : r?.erro ?? 'Falha', !r?.ok)
     setTimeout(reload, 3000)
   }
   async function reenviar(id: number, de: 'falha' | 'pulado') {
@@ -112,7 +114,7 @@ export function Disparos() {
         : 'Reenviar só nos grupos que FALHARAM? Vai tentar de novo o envio neles.'
     if (!confirm(msg)) return
     const r = await reenviarItens(id, de).catch(() => null)
-    toast(r && r.ok ? `Reenvio dos ${de} iniciado` : 'Falha', !(r && r.ok))
+    toast(r?.ok ? `Reenvio dos ${de} iniciado` : r?.erro ?? 'Falha', !r?.ok)
     setTimeout(() => {
       reload()
       abrir(id)

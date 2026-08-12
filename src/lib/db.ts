@@ -207,13 +207,39 @@ export async function agendarDisparo(d: NovoDisparo, scheduledAtISO: string): Pr
   return dispId
 }
 
-export async function chamarMotor(disparoId: number): Promise<Response> {
+export type MotorResp = {
+  ok: boolean
+  erro?: string
+  aviso?: string
+  motor?: 'evolution' | 'zapi'
+}
+
+// Inicia o disparo. Quem manda é a CONTA da campanha:
+//  - conta com evo_instancia  -> motor novo (Evolution). A RPC só põe status='rodando'
+//    e o cron gghx_disparo_tick_15s faz o resto. O painel nunca fala com o WhatsApp.
+//  - conta legada Z-API       -> segue chamando o motor do n8n, sem mudar nada.
+// Cutover sem big-bang: os dois convivem até o último chip sair da Z-API.
+export async function chamarMotor(disparoId: number): Promise<MotorResp> {
+  const { data, error } = await sb.rpc('gghx_iniciar_disparo', { p_disparo: disparoId })
+  if (error) return { ok: false, erro: error.message }
+  const r = (data ?? {}) as MotorResp
+  if (r.motor !== 'zapi') return r
+
   const t = await token()
-  return fetch(CONFIG.N8N_DISPARAR, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ campanha_id: disparoId, access_token: t }),
-  })
+  try {
+    const resp = await fetch(CONFIG.N8N_DISPARAR, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campanha_id: disparoId, access_token: t }),
+    })
+    return {
+      ok: resp.ok,
+      motor: 'zapi',
+      erro: resp.ok ? undefined : 'o motor antigo (Z-API) respondeu ' + resp.status,
+    }
+  } catch {
+    return { ok: false, motor: 'zapi', erro: 'não consegui falar com o motor antigo (Z-API)' }
+  }
 }
 
 // ===== métricas agregadas de um disparo (grupo: entregue/lido é agregado, "lido" é um piso) =====
@@ -264,13 +290,13 @@ export async function setDisparoStatus(disparoId: number, status: string): Promi
 }
 
 // retomar: só reenvia os pendentes (motor pula os já enviados)
-export async function retomarDisparo(disparoId: number): Promise<Response> {
+export async function retomarDisparo(disparoId: number): Promise<MotorResp> {
   await setDisparoStatus(disparoId, 'pausada')
   return chamarMotor(disparoId)
 }
 
 // reenviar itens de um status (falha/pulado) → volta a pendente e re-dispara
-export async function reenviarItens(disparoId: number, deStatus: 'falha' | 'pulado'): Promise<Response> {
+export async function reenviarItens(disparoId: number, deStatus: 'falha' | 'pulado'): Promise<MotorResp> {
   await sb.from(T.disparoItens).update({ status: 'pendente', erro: null }).eq('campanha_id', disparoId).eq('status', deStatus)
   await setDisparoStatus(disparoId, 'pausada')
   return chamarMotor(disparoId)
