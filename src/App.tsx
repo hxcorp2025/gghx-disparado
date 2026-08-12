@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { BarChart3, Users, FolderOpen, Send, Radio, QrCode, LogOut, Wrench } from 'lucide-react'
+import { BarChart3, Users, FolderOpen, Send, Radio, QrCode, LogOut, Wrench, Sparkles } from 'lucide-react'
 import { sb } from './lib/supabase'
 import { identifyUser, resetAnalytics } from './lib/analytics'
 import { AppProvider } from './state'
@@ -14,14 +14,16 @@ import { NovoDisparo } from './views/NovoDisparo'
 import { Disparos } from './views/Disparos'
 import { Conexao } from './views/Conexao'
 import { Extras } from './views/Extras'
+import { CopyIA } from './views/CopyIA'
 
-export type ViewId = 'estatisticas' | 'grupos' | 'campanhas' | 'novo' | 'disparos' | 'conexao' | 'extras'
+export type ViewId = 'estatisticas' | 'grupos' | 'campanhas' | 'novo' | 'copyia' | 'disparos' | 'conexao' | 'extras'
 
 const TABS: { id: ViewId; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'estatisticas', label: 'Estatísticas', Icon: BarChart3 },
   { id: 'grupos', label: 'Grupos', Icon: Users },
   { id: 'campanhas', label: 'Campanhas', Icon: FolderOpen },
   { id: 'novo', label: 'Novo disparo', Icon: Send },
+  { id: 'copyia', label: 'Copy com IA', Icon: Sparkles },
   { id: 'disparos', label: 'Disparos', Icon: Radio },
   { id: 'extras', label: 'Ferramentas', Icon: Wrench },
   { id: 'conexao', label: 'Conexão', Icon: QrCode },
@@ -107,6 +109,7 @@ export default function App() {
             {view === 'grupos' && <Grupos />}
             {view === 'campanhas' && <Campanhas goTo={setView} />}
             {view === 'novo' && <NovoDisparo goTo={setView} />}
+            {view === 'copyia' && <CopyIA />}
             {view === 'disparos' && <Disparos />}
             {view === 'extras' && <Extras />}
             {view === 'conexao' && <Conexao />}
