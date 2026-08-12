@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
-import { Users } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Users, ShieldAlert } from 'lucide-react'
 import { useApp } from '../state'
-import { syncGrupos, createCampanha } from '../lib/db'
+import { syncGrupos, createCampanha, gruposQueimados } from '../lib/db'
+import type { GrupoQueimado } from '../lib/db'
 import { toast } from '../lib/toast'
 import { SkeletonList, SkeletonCards } from '../components/Skeleton'
 import { Empty } from '../components/Empty'
@@ -9,11 +10,20 @@ import type { Grupo } from '../lib/types'
 
 type Filtro = 'avisos' | 'todos'
 
+// grupos que o motor pula sozinho. Falha na leitura nao pode derrubar a aba inteira:
+// e um aviso, e a lista de grupos precisa carregar de qualquer jeito.
+function useQueimados() {
+  const [queimados, setQueimados] = useState<GrupoQueimado[]>([])
+  useEffect(() => { gruposQueimados().then(setQueimados).catch(() => setQueimados([])) }, [])
+  return queimados
+}
+
 export function Grupos() {
   const { grupos, loadingGrupos, reloadGrupos, selected, toggle, setSelected } = useApp()
   const [q, setQ] = useState('')
   const [filtro, setFiltro] = useState<Filtro>('avisos')
   const [syncing, setSyncing] = useState(false)
+  const queimados = useQueimados()
 
   const visiveis = useMemo(() => {
     const ql = q.toLowerCase()
@@ -105,6 +115,33 @@ export function Grupos() {
           </div>
         </div>
       </div>
+
+      {queimados.length > 0 && (
+        <div className="card" style={{ borderColor: 'var(--amber)' }}>
+          <div className="row" style={{ gap: 8, marginBottom: 6 }}>
+            <ShieldAlert size={17} style={{ color: 'var(--amber)' }} />
+            <b>{queimados.length} grupo{queimados.length > 1 ? 's serão pulados' : ' será pulado'} sozinho no próximo disparo</b>
+          </div>
+          <p className="mut" style={{ fontSize: 12.5 }}>
+            Você pode deixar eles na campanha, o motor não tenta. Insistir em grupo que já
+            recusou é o que queima o chip: cada tentativa recusada é mais um sinal. Se o grupo
+            voltar e aceitar um envio, a ficha limpa sozinha.
+          </p>
+          <div className="scroll" style={{ maxHeight: 190 }}>
+            <table>
+              <thead><tr><th>Grupo</th><th style={{ width: 320 }}>Por quê</th></tr></thead>
+              <tbody>
+                {queimados.map((g) => (
+                  <tr key={g.group_id}>
+                    <td>{g.subject ?? g.group_id}</td>
+                    <td className="mut">{g.motivo}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="toolbar between">
         <div className="row">

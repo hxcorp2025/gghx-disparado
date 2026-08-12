@@ -71,6 +71,23 @@ export async function syncGrupos(): Promise<SyncGruposResp> {
   return (data ?? {}) as SyncGruposResp
 }
 
+// ===== Grupos que o motor pula sozinho =====
+// Grupo que recusou 2 vezes seguidas, sem nenhum envio aceito depois, e considerado
+// queimado. Insistir nele e o comportamento que queima o CHIP: cada tentativa recusada
+// e mais um sinal pro WhatsApp. Um envio aceito depois limpa a ficha.
+export type GrupoQueimado = {
+  group_id: string
+  subject: string | null
+  recusas: number
+  motivo: string
+  ultima: string | null
+}
+export async function gruposQueimados(): Promise<GrupoQueimado[]> {
+  const { data, error } = await sb.rpc('gghx_grupos_queimados')
+  if (error) throw error
+  return (data ?? []) as GrupoQueimado[]
+}
+
 // ===== CAMPANHAS (listas de grupos) =====
 export async function listCampanhas(): Promise<Campanha[]> {
   const { data, error } = await sb.from(T.campanhas).select('*').order('created_at', { ascending: false })
