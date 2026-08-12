@@ -35,7 +35,11 @@
   --blue: #4a9bff; --blue-tint: rgba(74, 155, 255, 0.13);
 
   --r-card: 12px; --r-btn: 8px; --r-input: 9px; --r-sm: 6px;
-  --t-fast: 120ms ease; --t: 160ms ease;
+  /* Curva de saida: anda rapido no comeco e assenta no fim, que e como coisa responde.
+     O `ease` padrao e simetrico, entao acelera no meio e chega frenando: em UI parece
+     hesitacao. Uma curva so, usada em tudo, porque nao tem transicao reversivel aqui. */
+  --curva: cubic-bezier(0.2, 0, 0, 1);
+  --t-fast: 120ms var(--curva); --t: 160ms var(--curva);
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
   --sh-float: 0 12px 34px -8px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
 }
@@ -49,6 +53,8 @@ body {
   font-size: 14px;
   line-height: 1.5;
   letter-spacing: 0.01em; /* +tracking no dark reduz halation */
+  /* deixa a fonte trocar de desenho conforme o tamanho, em vez de so escalar */
+  font-optical-sizing: auto;
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -73,7 +79,9 @@ a:hover { text-decoration: underline; }
 /* ---------- botões ---------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: var(--r-btn); font-weight: 550; letter-spacing: 0; background: var(--accent); color: var(--accent-ink); padding: 9px 16px; }
 .btn:hover { background: var(--accent-press); }
-.btn:active { transform: scale(0.98); }
+/* Afundar e INSTANTANEO (o dedo/mouse ja esta pressionando, esperar 120ms parece travado);
+   voltar e que e animado. Feedback no aperto, nao no soltar. */
+.btn:active { transform: scale(0.98); transition-duration: 0s; }
 .btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 .btn.ghost { background: var(--surface2); color: var(--txt); border: 1px solid var(--line); }
 .btn.ghost:hover { background: var(--overlay); border-color: var(--line2); }
@@ -278,4 +286,33 @@ input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); c
   .topbar { padding: 0 16px; } main { padding: 16px 14px 36px; }
   .grid2 { grid-template-columns: 1fr; } .gid { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+/* Movimento reduzido NAO e "sem feedback": e feedback sem deslocamento. Antes isto
+   zerava TUDO, inclusive o afundar do botao, que e resposta ao toque e nao movimento
+   vestibular. Agora: corta translado, escala e slide; mantem cor e opacidade, que sao
+   o que ensina o que aconteceu. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: opacity, background-color, border-color, color, box-shadow !important;
+    transition-duration: 140ms !important;
+  }
+  section { animation: none !important; }
+  .btn:active { transform: none; }
+}
+
+/* Vidro fosco vira superficie solida pra quem pediu menos transparencia: o borrado
+   e decoracao, a legibilidade nao e. */
+@media (prefers-reduced-transparency: reduce) {
+  .modal-backdrop { backdrop-filter: none; background: rgba(0, 0, 0, 0.85); }
+  .topbar, .sidebar { backdrop-filter: none; background: var(--surface); }
+}
+
+/* ---------- numeros ---------- */
+/* Este app CONTA: enviados, falhas, pendentes, participantes, teto do chip. Varias
+   telas recarregam sozinhas (3s com QR na tela, 5s gerando copy), e digito de largura
+   variavel faz a linha inteira tremer a cada atualizacao. Cifra tabular resolve. */
+.val, .cnt b, .count-pill b, .badge, td, th,
+.statcard .val, .statcard .sub, .dispcounters, .kbd {
+  font-variant-numeric: tabular-nums;
+}
