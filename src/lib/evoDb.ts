@@ -58,6 +58,59 @@ const pedir = async (acao: Acao, instancia: string | null, params?: Record<strin
     }),
   )
 
+// ===== Saude e limites por chip (warmup / anti-ban) =====
+// A view evo_chips_saude fica FECHADA pro painel: view sem security_invoker fura a
+// RLS da tabela de baixo. Quem le e a RPC, com allowlist dentro.
+
+export interface EvoChipSaude {
+  nome: string
+  rotulo: string | null
+  estado: string | null
+  numero: string | null
+  aquecendo: boolean | null
+  dia_do_warmup: number | null
+  teto_hoje: number | null
+  enviadas_hoje: number
+  ultima_hora: number
+  falhas_24h: number
+  proxy_ativo: boolean
+  politica_ativa: boolean | null
+  travado_por: string | null // null = pode enviar agora
+  teto_hora: number | null
+  janela_inicio: string | null
+  janela_fim: string | null
+  intervalo_min_ms: number | null
+  intervalo_max_ms: number | null
+}
+
+export type PoliticaForm = {
+  aquecendo: boolean
+  teto_dia: number
+  teto_hora: number
+  janela_ini: string
+  janela_fim: string
+  intervalo_min_ms: number
+  intervalo_max_ms: number
+  ativo: boolean
+}
+
+export const evoSaudeChips = () => rpc<EvoChipSaude[]>('evo_saude_chips')
+
+export const evoPoliticaSalvar = async (instancia: string, p: PoliticaForm) =>
+  exigirOk(
+    await rpc<{ ok: boolean; erro?: string }>('evo_politica_salvar', {
+      p_instancia: instancia,
+      p_aquecendo: p.aquecendo,
+      p_teto_dia: p.teto_dia,
+      p_teto_hora: p.teto_hora,
+      p_janela_ini: p.janela_ini,
+      p_janela_fim: p.janela_fim,
+      p_intervalo_min_ms: p.intervalo_min_ms,
+      p_intervalo_max_ms: p.intervalo_max_ms,
+      p_ativo: p.ativo,
+    }),
+  )
+
 export const evoListar = () => rpc<EvoInstancia[]>('evo_painel')
 export const evoSincronizar = () => pedir('sincronizar', null)
 export const evoCriar = (nome: string, rotulo: string) => pedir('criar', nome, { rotulo })

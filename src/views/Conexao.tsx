@@ -8,7 +8,7 @@ import {
 import type { EvoInstancia } from '../lib/evoDb'
 import { toast } from '../lib/toast'
 import { Empty } from '../components/Empty'
-import { SaudeChipPanel } from '../components/SaudeChip'
+import { ChipsSaude } from '../components/ChipsSaude'
 
 const ROTULO: Record<string, { texto: string; badge: string }> = {
   open: { texto: 'Conectado', badge: 'b-concluida' },
@@ -134,7 +134,9 @@ export function Conexao() {
         10 segundos, então o resultado aparece sozinho logo depois.
       </p>
 
-      <SaudeChipPanel />
+      {/* Saude do chip Z-API saiu daqui: media o HxSend, que nao dispara mais.
+          Quem manda agora e a politica de warmup da Evolution. */}
+      <ChipsSaude admin={admin} />
 
       <div className="row between" style={{ margin: '18px 0 12px' }}>
         <span className="count-pill">
