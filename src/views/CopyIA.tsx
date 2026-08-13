@@ -6,6 +6,7 @@ import {
 import type { CopyFila, CopyVariacao, CopyResumo } from '../lib/copyDb'
 import { toast } from '../lib/toast'
 import { Empty } from '../components/Empty'
+import { DisparoSendflow } from '../components/DisparoSendflow'
 
 const STATUS: Record<string, { txt: string; badge: string }> = {
   pending: { txt: 'na fila', badge: 'b-agendado' },
@@ -37,14 +38,14 @@ export function CopyIA() {
 
   const carregar = useCallback(async () => {
     try {
-      const [r, f, v] = await Promise.all([copyResumo(), copyFila(20), copyRevisar(!verTodas)])
+      const [r, f, v] = await Promise.all([copyResumo(), copyFila(20), copyRevisar(false)])
       setResumo(r); setFila(f); setVars(v); setErro('')
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não consegui carregar.')
     } finally {
       setCarregou(true)
     }
-  }, [verTodas])
+  }, [])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -91,6 +92,9 @@ export function CopyIA() {
 
   const custoHoje = resumo?.custo_30d?.[0]
   const diag = resumo?.diagnostico ?? {}
+  // fetch traz todas; deriva aqui pra nao depender do filtro visual
+  const aprovadas = vars.filter((v) => v.aprovada === true)
+  const varsMostrados = verTodas ? vars : vars.filter((v) => v.aprovada === null)
 
   if (erro) {
     return (
@@ -183,6 +187,8 @@ export function CopyIA() {
         </div>
       ) : null}
 
+      <DisparoSendflow aprovadas={aprovadas} />
+
       <div className="card">
         <h3 style={{ marginBottom: 10 }}>Pedir variações</h3>
         <div className="field">
@@ -259,13 +265,13 @@ export function CopyIA() {
       )}
 
       <div className="row between" style={{ margin: '18px 0 12px' }}>
-        <span className="count-pill"><b>{vars.length}</b> {verTodas ? 'no total' : 'esperando você'}</span>
+        <span className="count-pill"><b>{varsMostrados.length}</b> {verTodas ? 'no total' : 'esperando você'}</span>
         <button className="btn ghost sm" onClick={() => setVerTodas((v) => !v)}>
           {verTodas ? 'Ver só as pendentes' : 'Ver todas'}
         </button>
       </div>
 
-      {vars.length === 0 && carregou && (
+      {varsMostrados.length === 0 && carregou && (
         <Empty
           Icon={Sparkles}
           title={verTodas ? 'Nenhuma variação ainda' : 'Nada esperando revisão'}
@@ -273,7 +279,7 @@ export function CopyIA() {
         />
       )}
 
-      {vars.map((v) => {
+      {varsMostrados.map((v) => {
         const viol = v.violacoes ?? []
         return (
           <div className="card" key={v.id} style={viol.length ? { borderColor: 'var(--red)' } : undefined}>
