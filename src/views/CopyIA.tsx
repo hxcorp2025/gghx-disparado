@@ -6,7 +6,6 @@ import {
 import type { CopyFila, CopyVariacao, CopyResumo } from '../lib/copyDb'
 import { toast } from '../lib/toast'
 import { Empty } from '../components/Empty'
-import { DisparoSendflow } from '../components/DisparoSendflow'
 
 const STATUS: Record<string, { txt: string; badge: string }> = {
   pending: { txt: 'na fila', badge: 'b-agendado' },
@@ -31,10 +30,14 @@ export function CopyIA() {
   const [erro, setErro] = useState('')
   const [carregou, setCarregou] = useState(false)
 
-  const [briefing, setBriefing] = useState('')
+  const [original, setOriginal] = useState('')
   const [n, setN] = useState(3)
   const [dominios, setDominios] = useState('')
   const [instrucoes, setInstrucoes] = useState('')
+
+  // reprovacao com motivo: o comentario realimenta o motor (secao "NAO REPITA ESTES ERROS")
+  const [reprovando, setReprovando] = useState<number | null>(null)
+  const [motivo, setMotivo] = useState('')
 
   const carregar = useCallback(async () => {
     try {
@@ -62,12 +65,12 @@ export function CopyIA() {
     setOcupado(true)
     try {
       const r = await copyPedir(
-        briefing.trim(), n,
+        original.trim(), n,
         dominios.split(/[\s,]+/).map((d) => d.trim()).filter(Boolean),
         instrucoes.trim(),
       )
       toast(r.aviso ?? 'Pedido na fila')
-      setBriefing(''); setInstrucoes('')
+      setOriginal(''); setInstrucoes('')
       await carregar()
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Falhou', true)
@@ -76,12 +79,13 @@ export function CopyIA() {
     }
   }
 
-  async function decidir(id: number, aprovada: boolean) {
+  async function decidir(id: number, aprovada: boolean, mot?: string) {
     if (ocupado) return
     setOcupado(true)
     try {
-      await copyDecidir(id, aprovada)
+      await copyDecidir(id, aprovada, mot)
       toast(aprovada ? 'Aprovada' : 'Reprovada')
+      setReprovando(null); setMotivo('')
       await carregar()
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Falhou', true)
@@ -92,8 +96,7 @@ export function CopyIA() {
 
   const custoHoje = resumo?.custo_30d?.[0]
   const diag = resumo?.diagnostico ?? {}
-  // fetch traz todas; deriva aqui pra nao depender do filtro visual
-  const aprovadas = vars.filter((v) => v.aprovada === true)
+  // fetch traz todas; o filtro visual decide o que mostrar (o disparo agora mora na aba Disparar)
   const varsMostrados = verTodas ? vars : vars.filter((v) => v.aprovada === null)
 
   if (erro) {
@@ -187,16 +190,14 @@ export function CopyIA() {
         </div>
       ) : null}
 
-      <DisparoSendflow aprovadas={aprovadas} />
-
       <div className="card">
         <h3 style={{ marginBottom: 10 }}>Pedir variações</h3>
         <div className="field">
-          <label htmlFor="cp-brief">Briefing: o que a mensagem precisa dizer</label>
+          <label htmlFor="cp-orig">Cópia original (a mensagem que você quer variar)</label>
           <textarea
-            id="cp-brief" rows={4} value={briefing}
-            placeholder="ex.: sorteio de R$ 50 mil encerrando hoje as 23h59, com link pro checkout, tom de urgencia sem apelacao"
-            onChange={(e) => setBriefing(e.target.value)}
+            id="cp-orig" rows={5} value={original}
+            placeholder="Cola aqui a mensagem que você mandaria no grupo. A IA cria variações dela, e a original já fica disponível pra disparar."
+            onChange={(e) => setOriginal(e.target.value)}
           />
         </div>
         <div className="grid2">
@@ -217,7 +218,7 @@ export function CopyIA() {
             onChange={(e) => setInstrucoes(e.target.value)} />
         </div>
         <div className="row">
-          <button className="btn" disabled={ocupado || briefing.trim().length < 10} onClick={pedir}>
+          <button className="btn" disabled={ocupado || original.trim().length < 10} onClick={pedir}>
             <Sparkles size={15} /> Gerar variações
           </button>
           <button className="btn ghost" disabled={ocupado} onClick={carregar}>
@@ -281,11 +282,13 @@ export function CopyIA() {
 
       {varsMostrados.map((v) => {
         const viol = v.violacoes ?? []
+        const ehOriginal = v.origem === 'original'
         return (
           <div className="card" key={v.id} style={viol.length ? { borderColor: 'var(--red)' } : undefined}>
             <div className="row between" style={{ marginBottom: 8 }}>
               <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                {v.angulo && <span className="badge b-rodando">{v.angulo}</span>}
+                {ehOriginal && <span className="badge b-agendado">original</span>}
+                {v.angulo && !ehOriginal && <span className="badge b-rodando">{v.angulo}</span>}
                 {v.dominio_link
                   ? <span className="badge b-rascunho">{v.dominio_link}</span>
                   : <span className="badge b-rascunho">sem link</span>}
@@ -305,16 +308,43 @@ export function CopyIA() {
               </p>
             )}
 
-            {v.aprovada === null && (
+            {v.aprovada === false && v.reprovacao_motivo && (
+              <p className="mut" style={{ fontSize: 12.5, marginTop: 10 }}>
+                <b>Motivo da reprovação:</b> {v.reprovacao_motivo}
+              </p>
+            )}
+
+            {v.aprovada === null && reprovando !== v.id && (
               <div className="row" style={{ marginTop: 12 }}>
                 <button className="btn sm" disabled={ocupado || viol.length > 0}
                   onClick={() => decidir(v.id, true)}>
                   <Check size={15} /> Aprovar
                 </button>
                 <button className="btn danger sm" disabled={ocupado}
-                  onClick={() => decidir(v.id, false)}>
+                  onClick={() => { setReprovando(v.id); setMotivo('') }}>
                   <X size={15} /> Reprovar
                 </button>
+              </div>
+            )}
+
+            {v.aprovada === null && reprovando === v.id && (
+              <div className="field" style={{ marginTop: 12 }}>
+                <label htmlFor={`mot-${v.id}`}>Por que está reprovando? (a IA usa isso pra não repetir o erro)</label>
+                <textarea
+                  id={`mot-${v.id}`} rows={2} value={motivo} autoFocus
+                  placeholder="ex.: curta demais, só uma frase e o link, sem gancho nem prova do prêmio"
+                  onChange={(e) => setMotivo(e.target.value)}
+                />
+                <div className="row" style={{ marginTop: 8 }}>
+                  <button className="btn danger sm" disabled={ocupado}
+                    onClick={() => decidir(v.id, false, motivo)}>
+                    <X size={15} /> Confirmar reprovação
+                  </button>
+                  <button className="btn ghost sm" disabled={ocupado}
+                    onClick={() => { setReprovando(null); setMotivo('') }}>
+                    Cancelar
+                  </button>
+                </div>
               </div>
             )}
           </div>

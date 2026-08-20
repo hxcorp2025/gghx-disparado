@@ -36,6 +36,7 @@ export type CopyVariacao = {
   violacoes: string[] | null
   reprovada_na_guarda: boolean
   aprovada: boolean | null
+  reprovacao_motivo: string | null
   braco_ab: string | null
   criado_em: string
 }
@@ -74,25 +75,29 @@ export const copyFila = (limite = 20) => rpc<CopyFila[]>('hx_copy_painel', { p_l
 export const copyRevisar = (soPendentes = true) =>
   rpc<CopyVariacao[]>('hx_copy_revisar', { p_so_pendentes: soPendentes })
 
+// Agora a entrada principal e a COPIA ORIGINAL (a mensagem base): a IA varia a partir dela
+// e a original ja entra disparavel (idx 0, aprovada). Ver PRD_copyia_biblioteca_disparo_2026-08-13.
 export const copyPedir = async (
-  briefing: string,
+  original: string,
   n: number,
   dominios: string[],
   instrucoes: string,
 ) =>
   exigirOk(
     await rpc<{ ok: boolean; erro?: string; aviso?: string; fila_id?: number }>('hx_copy_pedir', {
-      p_briefing: briefing,
+      p_original: original,
       p_n: n,
       p_dominios: dominios.length ? dominios : null,
       p_instrucoes: instrucoes || null,
     }),
   )
 
-export const copyDecidir = async (id: number, aprovada: boolean) =>
+// motivo so viaja na reprovacao; ele realimenta o motor (secao "NAO REPITA ESTES ERROS" do prompt)
+export const copyDecidir = async (id: number, aprovada: boolean, motivo?: string) =>
   exigirOk(
     await rpc<{ ok: boolean; erro?: string }>('hx_copy_decidir', {
       p_id: id,
       p_aprovada: aprovada,
+      p_motivo: motivo?.trim() || null,
     }),
   )

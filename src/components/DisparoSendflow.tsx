@@ -44,6 +44,19 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
     [grupos, releaseFiltro],
   )
 
+  // agrupa as aprovadas por PEDIDO (fila_id); dentro do pedido, a original (idx 0) vem primeiro
+  const porPedido = useMemo(() => {
+    const m = new Map<number, CopyVariacao[]>()
+    aprovadas.forEach((v) => {
+      const arr = m.get(v.fila_id) ?? []
+      arr.push(v)
+      m.set(v.fila_id, arr)
+    })
+    return [...m.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([fid, vs]) => ({ fid, vs: [...vs].sort((x, y) => x.idx - y.idx) }))
+  }, [aprovadas])
+
   const selecionadas = aprovadas.filter((v) => sel.has(v.id))
   const podeDisparar = selecionadas.length > 0 && gruposAlvo.length > 0
   const porVariacao = Math.ceil(gruposAlvo.length / Math.max(1, selecionadas.length))
@@ -93,21 +106,26 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
       </p>
 
       <div className="field">
-        <label>Variações aprovadas ({selecionadas.length} escolhidas)</label>
-        <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
-          {aprovadas.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              className={'btn sm ' + (sel.has(v.id) ? '' : 'ghost')}
-              onClick={() => toggle(v.id)}
-              title={v.texto}
-            >
-              {sel.has(v.id) ? '✓ ' : ''}
-              {v.angulo || `#${v.fila_id}.${v.idx}`}
-            </button>
-          ))}
-        </div>
+        <label>Cópias aprovadas ({selecionadas.length} escolhidas)</label>
+        {porPedido.map(({ fid, vs }) => (
+          <div key={fid} style={{ marginBottom: 10 }}>
+            <span className="mut" style={{ fontSize: 12 }}>Pedido #{fid}</span>
+            <div className="row" style={{ flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+              {vs.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  className={'btn sm ' + (sel.has(v.id) ? '' : 'ghost')}
+                  onClick={() => toggle(v.id)}
+                  title={v.texto}
+                >
+                  {sel.has(v.id) ? '✓ ' : ''}#{v.fila_id}.{v.idx}
+                  {v.origem === 'original' ? ' · original' : v.angulo ? ` · ${v.angulo}` : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="field">
@@ -188,7 +206,10 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
           </div>
           {selecionadas.map((v) => (
             <div key={v.id} style={{ marginTop: 12 }}>
-              <span className="mut" style={{ fontSize: 12 }}>{v.angulo || `#${v.fila_id}.${v.idx}`}</span>
+              <span className="mut" style={{ fontSize: 12 }}>
+                #{v.fila_id}.{v.idx}
+                {v.origem === 'original' ? ' · original' : v.angulo ? ` · ${v.angulo}` : ''}
+              </span>
               <PreviewWhatsApp texto={v.texto} />
             </div>
           ))}

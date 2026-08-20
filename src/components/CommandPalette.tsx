@@ -1,6 +1,6 @@
 import { Command } from 'cmdk'
 import { useEffect, useState } from 'react'
-import { BarChart3, Users, FolderOpen, Send, Radio, QrCode, LogOut, Wrench } from 'lucide-react'
+import { BarChart3, Users, FolderOpen, Send, Radio, QrCode, LogOut, Wrench, Sparkles, Rocket } from 'lucide-react'
 import type { ViewId } from '../App'
 
 type Item = { icon: typeof BarChart3; label: string; act: () => void; group: string }
@@ -36,6 +36,8 @@ export function CommandPalette({
     { icon: Users, label: 'Grupos', act: () => go('grupos'), group: 'Navegar' },
     { icon: FolderOpen, label: 'Campanhas', act: () => go('campanhas'), group: 'Navegar' },
     { icon: Send, label: 'Novo disparo', act: () => go('novo'), group: 'Navegar' },
+    { icon: Sparkles, label: 'Copy com IA', act: () => go('copyia'), group: 'Navegar' },
+    { icon: Rocket, label: 'Disparar cópias', act: () => go('disparoia'), group: 'Navegar' },
     { icon: Radio, label: 'Disparos', act: () => go('disparos'), group: 'Navegar' },
     { icon: Wrench, label: 'Ferramentas', act: () => go('extras'), group: 'Navegar' },
     { icon: QrCode, label: 'Conexão', act: () => go('conexao'), group: 'Navegar' },
