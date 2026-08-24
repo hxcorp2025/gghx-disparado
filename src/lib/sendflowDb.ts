@@ -41,14 +41,23 @@ export type SendflowDisparoResultado = {
   ignorados_n: number
 }
 
+// Bloco da sequência de disparo (PRD_send_upload_midia_2026-08-24): a copy da variação
+// entra em EXATAMENTE um lugar — bloco 'copy' OU legenda_copy de UMA mídia. O banco valida
+// de novo e resolve midia_id -> URL (a tela nunca manda URL).
+export type BlocoDisparo =
+  | { tipo: 'copy' }
+  | { tipo: 'midia'; midia_id: number; legenda_copy?: boolean }
+
 // F3 - enfileira um disparo: round-robin das variacoes aprovadas pelos grupos escolhidos.
 // So ENFILEIRA (o worker no banco faz o POST na SendAPI). Nada dispara pela tela.
+// blocos null/[] = disparo de texto puro (comportamento original, intocado).
 export const sendflowDisparar = async (
   gids: string[],
   variacaoIds: number[],
   mencao = false,
   intervaloMin = 80,
   intervaloMax = 160,
+  blocos: BlocoDisparo[] | null = null,
 ) => {
   const r = await rpc<SendflowDisparoResultado>('sendflow_disparar', {
     p_gids: gids,
@@ -56,6 +65,7 @@ export const sendflowDisparar = async (
     p_mencao: mencao,
     p_intervalo_min: intervaloMin,
     p_intervalo_max: intervaloMax,
+    p_blocos: blocos && blocos.length > 0 ? blocos : null,
   })
   // mesmo cinto do exigirOk() do copyDb: nunca tratar {ok:false} como sucesso
   if (!r.ok) throw new Error('Não consegui enfileirar o disparo.')

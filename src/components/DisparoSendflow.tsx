@@ -6,6 +6,8 @@ import type { SendflowGrupoVip } from '../lib/sendflowDb'
 import { Modal } from './Modal'
 import { PreviewWhatsApp } from './PreviewWhatsApp'
 import { toast } from '../lib/toast'
+import { SequenciaMidia, blocosParaRpc, sequenciaValida } from './SequenciaMidia'
+import type { BlocoUI } from './SequenciaMidia'
 
 // Ritmo entre mensagens no chip — valores que o Peterson usa na mao (seguranca anti-ban).
 const RITMOS = {
@@ -26,6 +28,7 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
   const [confirmando, setConfirmando] = useState(false)
   const [disparando, setDisparando] = useState(false)
   const [erroGrupos, setErroGrupos] = useState('')
+  const [blocos, setBlocos] = useState<BlocoUI[]>([{ key: 'copy-base', tipo: 'copy' }])
 
   useEffect(() => {
     sendflowGruposVip()
@@ -58,7 +61,9 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
   }, [aprovadas])
 
   const selecionadas = aprovadas.filter((v) => sel.has(v.id))
-  const podeDisparar = selecionadas.length > 0 && gruposAlvo.length > 0
+  const erroSequencia = sequenciaValida(blocos)
+  const nMidias = blocos.filter((b) => b.tipo === 'midia').length
+  const podeDisparar = selecionadas.length > 0 && gruposAlvo.length > 0 && !erroSequencia
   const porVariacao = Math.ceil(gruposAlvo.length / Math.max(1, selecionadas.length))
 
   function toggle(id: number) {
@@ -78,11 +83,14 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
         // manda a selecao DERIVADA (aprovada + visivel), nao o Set cru: se o polling
         // reprova uma variacao selecionada, [...sel] mandaria um id que a tela nem mostra.
         gruposAlvo.map((g) => g.gid), selecionadas.map((v) => v.id), mencao, RITMOS[ritmo].min, RITMOS[ritmo].max,
+        blocosParaRpc(blocos),
       )
       const extra = r.ignorados_n ? ` · ${r.ignorados_n} ignorados` : ''
       toast(`Disparo enfileirado: ${r.grupos} grupos em ${r.lotes} lotes${extra}`)
       setConfirmando(false)
       setSel(new Set())
+      // zera a sequência: mídia armada de um disparo NUNCA vaza pro próximo sem querer
+      setBlocos([{ key: 'copy-base', tipo: 'copy' }])
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Falhou', true)
     } finally {
@@ -172,6 +180,9 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
         </p>
       </div>
 
+      <SequenciaMidia blocos={blocos} onChange={setBlocos} />
+      {erroSequencia && <p className="st-falha" style={{ fontSize: 12 }}>{erroSequencia}</p>}
+
       <label className="row" style={{ gap: 8, cursor: 'pointer', margin: '4px 0 12px' }}>
         <input type="checkbox" checked={mencao} onChange={(e) => setMencao(e.target.checked)} />
         <AtSign size={15} /> Mencionar todos os participantes
@@ -180,7 +191,7 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
 
       <div className="row between">
         <span className="mut" style={{ fontSize: 13 }}>
-          <Users size={13} /> {selecionadas.length} variações → <b>{gruposAlvo.length}</b> grupos
+          <Users size={13} /> {selecionadas.length} variações{nMidias > 0 ? ` + ${nMidias} mídia${nMidias > 1 ? 's' : ''}` : ''} → <b>{gruposAlvo.length}</b> grupos
         </span>
         <button className="btn" disabled={!podeDisparar} onClick={() => setConfirmando(true)}>
           <Send size={15} /> Preparar disparo
@@ -190,7 +201,7 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
       {confirmando && (
         <Modal
           title="Confirmar disparo"
-          sub={`${selecionadas.length} variações → ${gruposAlvo.length} grupos · menção ${mencao ? 'LIGADA' : 'desligada'} · ritmo ${RITMOS[ritmo].sub}`}
+          sub={`${selecionadas.length} variações${nMidias > 0 ? ` + ${nMidias} mídia(s) em sequência` : ''} → ${gruposAlvo.length} grupos · menção ${mencao ? 'LIGADA' : 'desligada'} · ritmo ${RITMOS[ritmo].sub}`}
           onClose={() => !disparando && setConfirmando(false)}
         >
           <div className="card" style={{ borderColor: 'var(--amber)', marginTop: 0 }}>
@@ -204,6 +215,20 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
               processa a fila.
             </p>
           </div>
+          {nMidias > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <span className="mut" style={{ fontSize: 12 }}>Ordem no grupo:</span>
+              <ol style={{ margin: '4px 0 0 18px', fontSize: 12.5 }}>
+                {blocos.map((b) => (
+                  <li key={b.key}>
+                    {b.tipo === 'copy'
+                      ? 'Copy da variação (texto)'
+                      : `${b.midia.tipo} · ${b.midia.nome}${b.legendaCopy ? ' (copy na legenda)' : ''}`}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           {selecionadas.map((v) => (
             <div key={v.id} style={{ marginTop: 12 }}>
               <span className="mut" style={{ fontSize: 12 }}>
