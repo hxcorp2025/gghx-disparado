@@ -59,7 +59,7 @@ export function Disparar() {
           sub="Vá na aba Copy com IA, cole a mensagem e aprove as variações. Elas aparecem aqui pra disparar."
         />
       ) : (
-        <DisparoSendflow aprovadas={aprovadas} />
+        <DisparoSendflow aprovadas={aprovadas} onRecarregar={carregar} />
       )}
     </section>
   )

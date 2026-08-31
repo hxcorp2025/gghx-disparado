@@ -346,6 +346,9 @@ input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); c
 .vcard .vmeta b { color: var(--txt); font-size: 12px; }
 .vcard .vtxt { font-size: 12.5px; line-height: 1.45; color: var(--mut); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; word-break: break-word; }
 .vcard.on .vtxt { color: var(--txt); }
+.vcard { cursor: pointer; } /* virou div (lapis aninhado): o cursor de botao vem daqui */
+.vedit { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; color: var(--mut); }
+.vedit:hover { background: var(--overlay); color: var(--txt); }
 
 /* lista de grupos do alvo (checkbox por grupo + pessoas + cooldown) */
 .galvo { max-height: 300px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface2); }

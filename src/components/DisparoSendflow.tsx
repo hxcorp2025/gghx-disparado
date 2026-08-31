@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Send, Users, AtSign, AlertTriangle, Check, Pause, Play, XCircle, Zap, Rocket,
+  Send, Users, AtSign, AlertTriangle, Check, Pause, Play, XCircle, Zap, Rocket, Pencil,
 } from 'lucide-react'
 import type { CopyVariacao } from '../lib/copyDb'
 import {
@@ -14,6 +14,7 @@ import { PhonePreview } from './PhonePreview'
 import { toast } from '../lib/toast'
 import { SequenciaMidia, blocosParaRpc, sequenciaValida } from './SequenciaMidia'
 import type { BlocoUI } from './SequenciaMidia'
+import { EditorCopyTexto } from './EditorCopyTexto'
 
 // Ritmo entre mensagens no chip — valores que o Peterson usa na mao (seguranca anti-ban).
 const RITMOS = {
@@ -51,7 +52,13 @@ function horasDesde(iso: string) {
 // Mesa de Disparo (estudo UX 24/08, artifact 4e694a44): 4 cartoes com estado + celular
 // fixo com a conversa real + revisao read-only + partida em 60s cancelavel + lotes
 // pausaveis enquanto nao viram acao no SendFlow. So ENFILEIRA — o worker envia.
-export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
+export function DisparoSendflow({
+  aprovadas,
+  onRecarregar,
+}: {
+  aprovadas: CopyVariacao[]
+  onRecarregar?: () => void
+}) {
   const [grupos, setGrupos] = useState<SendflowGrupoVip[]>([])
   const [ultimoEnvio, setUltimoEnvio] = useState<Map<string, string>>(new Map())
   const [sel, setSel] = useState<Set<number>>(new Set())
@@ -69,6 +76,8 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
   const [agora, setAgora] = useState(Date.now())
   const [confirmaAborto, setConfirmaAborto] = useState(false)
   const [agindo, setAgindo] = useState(false)
+  // ajuste de detalhe sem cancelar a copy (PRD_copyia_editar_variacao_2026-08-31)
+  const [editandoVar, setEditandoVar] = useState<CopyVariacao | null>(null)
 
   // cooldown é conveniência: sem ele a mesa segue funcionando
   const carregarCooldown = useCallback(() => {
@@ -432,14 +441,23 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
               <span className="mut" style={{ fontSize: 11.5 }}>Pedido #{fid}</span>
               <div className="vgrid" style={{ marginTop: 5 }}>
                 {vs.map((v) => (
-                  <button key={v.id} type="button" className={'vcard' + (sel.has(v.id) ? ' on' : '')}
-                    onClick={() => toggleVar(v)}>
+                  <div key={v.id} role="button" tabIndex={0} aria-pressed={sel.has(v.id)}
+                    className={'vcard' + (sel.has(v.id) ? ' on' : '')}
+                    onClick={() => toggleVar(v)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleVar(v) } }}>
                     <span className="vmeta">
                       <b>{sel.has(v.id) ? '✓ ' : ''}{vLabel(v)}</b>
-                      <span>{v.chars} chars</span>
+                      <span className="row" style={{ gap: 6 }}>
+                        {v.editado_em && <span title={v.texto_original ?? undefined}>editada</span>}
+                        <span>{v.chars} chars</span>
+                        <button type="button" className="vedit" title="Ajustar o texto (salvar já aprova)"
+                          onClick={(e) => { e.stopPropagation(); setEditandoVar(v) }}>
+                          <Pencil size={12} />
+                        </button>
+                      </span>
                     </span>
                     <span className="vtxt">{v.texto}</span>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -564,6 +582,22 @@ export function DisparoSendflow({ aprovadas }: { aprovadas: CopyVariacao[] }) {
         )}
         <PhonePreview blocos={blocos} texto={previewVar?.texto ?? null} mencao={mencao} />
       </div>
+
+      {/* ajuste de detalhe na copy, direto da mesa */}
+      {editandoVar && (
+        <Modal
+          title="Ajustar copy"
+          sub={`${vLabel(editandoVar)} · o disparo armado/enviado não muda; o próximo usa o texto novo`}
+          onClose={() => setEditandoVar(null)}
+        >
+          <EditorCopyTexto
+            id={editandoVar.id}
+            textoAtual={editandoVar.texto}
+            onSalvo={() => { setEditandoVar(null); onRecarregar?.() }}
+            onFechar={() => setEditandoVar(null)}
+          />
+        </Modal>
+      )}
 
       {/* revisão read-only */}
       {revisando && (

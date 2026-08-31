@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Sparkles, Check, X, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Sparkles, Check, X, RefreshCw, AlertTriangle, Pencil } from 'lucide-react'
 import {
   copyResumo, copyFila, copyRevisar, copyPedir, copyDecidir,
 } from '../lib/copyDb'
 import type { CopyFila, CopyVariacao, CopyResumo } from '../lib/copyDb'
 import { toast } from '../lib/toast'
 import { Empty } from '../components/Empty'
+import { EditorCopyTexto } from '../components/EditorCopyTexto'
 
 const STATUS: Record<string, { txt: string; badge: string }> = {
   pending: { txt: 'na fila', badge: 'b-agendado' },
@@ -38,6 +39,8 @@ export function CopyIA() {
   // reprovacao com motivo: o comentario realimenta o motor (secao "NAO REPITA ESTES ERROS")
   const [reprovando, setReprovando] = useState<number | null>(null)
   const [motivo, setMotivo] = useState('')
+  // edicao in-place: copy boa com detalhe errado se ajusta, nao se cancela (Peterson, 31/08)
+  const [editando, setEditando] = useState<number | null>(null)
 
   const carregar = useCallback(async () => {
     try {
@@ -295,16 +298,30 @@ export function CopyIA() {
                 <span className="badge b-rascunho">{v.chars} chars</span>
                 {v.aprovada === true && <span className="badge b-concluida">aprovada</span>}
                 {v.aprovada === false && <span className="badge b-erro">reprovada</span>}
+                {v.editado_em && (
+                  <span className="badge b-rodando" title={v.texto_original ? `Original:\n\n${v.texto_original}` : undefined}>
+                    editada
+                  </span>
+                )}
               </div>
               <span className="mut" style={{ fontSize: 12 }}>#{v.fila_id}.{v.idx}</span>
             </div>
 
-            <div style={{ whiteSpace: 'pre-wrap', fontSize: 14.5, lineHeight: 1.55 }}>{v.texto}</div>
+            {editando === v.id ? (
+              <EditorCopyTexto
+                id={v.id}
+                textoAtual={v.texto}
+                onSalvo={() => { setEditando(null); carregar() }}
+                onFechar={() => setEditando(null)}
+              />
+            ) : (
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: 14.5, lineHeight: 1.55 }}>{v.texto}</div>
+            )}
 
-            {viol.length > 0 && (
+            {viol.length > 0 && editando !== v.id && (
               <p className="st-falha" style={{ fontSize: 12.5, marginTop: 10 }}>
                 Quebra regra da casa: {viol.map((x) => VIOLACAO[x] ?? x).join(' · ')}.
-                Não dá pra aprovar, só reprovar e pedir outra.
+                Não dá pra aprovar como está — edita o texto ou reprova.
               </p>
             )}
 
@@ -314,15 +331,27 @@ export function CopyIA() {
               </p>
             )}
 
-            {v.aprovada === null && reprovando !== v.id && (
+            {v.aprovada === null && reprovando !== v.id && editando !== v.id && (
               <div className="row" style={{ marginTop: 12 }}>
                 <button className="btn sm" disabled={ocupado || viol.length > 0}
                   onClick={() => decidir(v.id, true)}>
                   <Check size={15} /> Aprovar
                 </button>
+                <button className="btn ghost sm" disabled={ocupado}
+                  onClick={() => { setEditando(v.id); setReprovando(null) }}>
+                  <Pencil size={14} /> Editar
+                </button>
                 <button className="btn danger sm" disabled={ocupado}
                   onClick={() => { setReprovando(v.id); setMotivo('') }}>
                   <X size={15} /> Reprovar
+                </button>
+              </div>
+            )}
+
+            {v.aprovada !== null && editando !== v.id && (
+              <div className="row" style={{ marginTop: 12 }}>
+                <button className="btn ghost sm" disabled={ocupado} onClick={() => setEditando(v.id)}>
+                  <Pencil size={14} /> Editar{v.aprovada === false ? ' e resgatar' : ''}
                 </button>
               </div>
             )}

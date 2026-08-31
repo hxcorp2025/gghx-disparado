@@ -39,6 +39,9 @@ export type CopyVariacao = {
   reprovacao_motivo: string | null
   braco_ab: string | null
   criado_em: string
+  texto_original: string | null
+  editado_por: string | null
+  editado_em: string | null
 }
 
 export type CopyResumo = {
@@ -90,6 +93,14 @@ export const copyPedir = async (
       p_dominios: dominios.length ? dominios : null,
       p_instrucoes: instrucoes || null,
     }),
+  )
+
+// edicao in-place (PRD_copyia_editar_variacao_2026-08-31): salvar JA aprova. As guardas da
+// casa re-rodam no banco (colunas geradas) — violacao = erro e NADA muda. O texto original
+// fica guardado na 1ª edicao; disparo passado nunca e reescrito (a fila guarda copia).
+export const copyEditar = async (id: number, texto: string) =>
+  exigirOk(
+    await rpc<{ ok: boolean; erro?: string }>('hx_copy_editar', { p_id: id, p_texto: texto }),
   )
 
 // motivo so viaja na reprovacao; ele realimenta o motor (secao "NAO REPITA ESTES ERROS" do prompt)
