@@ -49,6 +49,12 @@ function horasDesde(iso: string) {
   return (Date.now() - new Date(iso).getTime()) / 3_600_000
 }
 
+function rotuloDesde(iso: string) {
+  const h = horasDesde(iso)
+  if (h < 1) return `${Math.max(1, Math.round(h * 60))}min`
+  return `${Math.floor(h)}h`
+}
+
 // Mesa de Disparo (estudo UX 24/08, artifact 4e694a44): 4 cartoes com estado + celular
 // fixo com a conversa real + revisao read-only + partida em 60s cancelavel + lotes
 // pausaveis enquanto nao viram acao no SendFlow. So ENFILEIRA — o worker envia.
@@ -182,16 +188,16 @@ export function DisparoSendflow({
     })
   }
 
-  // pill de release: marca todos os grupos dela FORA de cooldown; clicar de novo desmarca todos.
-  // "todos marcados" olha só os marcáveis — senão a pill vira no-op quando há grupo em cooldown.
+  // pill de release: marca TODOS os grupos dela; clicar de novo desmarca todos.
+  // Cooldown NÃO exclui ninguém (Peterson 31/08: a operação empilha disparos no mesmo
+  // dia — excluir do marcar em bloco travava o fluxo). O selo é só informação.
   function toggleRelease(rid: string | null) {
     const alvo = rid === null ? grupos : grupos.filter((g) => g.release_id === rid)
-    const marcaveis = alvo.filter((g) => !emCooldown(g.gid))
-    const todosMarcados = marcaveis.length > 0 && marcaveis.every((g) => selGids.has(g.gid))
+    const todosMarcados = alvo.length > 0 && alvo.every((g) => selGids.has(g.gid))
     setSelGids((s) => {
       const n = new Set(s)
       if (todosMarcados) alvo.forEach((g) => n.delete(g.gid))
-      else marcaveis.forEach((g) => n.add(g.gid))
+      else alvo.forEach((g) => n.add(g.gid))
       return n
     })
   }
@@ -502,8 +508,8 @@ export function DisparoSendflow({
             )}
           </div>
           <p className="mut" style={{ fontSize: 11.5, margin: '0 0 8px' }}>
-            Grupo que recebeu disparo há menos de {COOLDOWN_H}h fica de fora ao marcar em bloco
-            (aviso âmbar) — dá pra marcar na mão se for de propósito.
+            O selo mostra há quanto tempo o grupo recebeu o último disparo (âmbar = menos de{' '}
+            {COOLDOWN_H}h). É só informação — marcar em bloco marca todo mundo.
           </p>
           {erroGrupos && <p className="st-falha" style={{ fontSize: 12 }}>{erroGrupos}</p>}
           {grupos.length > 0 && (
@@ -516,7 +522,11 @@ export function DisparoSendflow({
                     <input type="checkbox" checked={selGids.has(g.gid)} onChange={() => toggleGid(g.gid)} />
                     <span className="gnome">
                       {g.nome}
-                      {cool && u && <span className="cool" style={{ marginLeft: 7 }}>disparo há {Math.floor(horasDesde(u))}h</span>}
+                      {u && (
+                        <span className={'cool' + (cool ? '' : ' info')} style={{ marginLeft: 7 }}>
+                          disparo há {rotuloDesde(u)}
+                        </span>
+                      )}
                     </span>
                     <span className="gpess">{g.participantes || 0} pessoas</span>
                   </label>
@@ -617,6 +627,15 @@ export function DisparoSendflow({
               Cada variação pega ~{porVariacao} grupos, {RITMOS[ritmo].sub} entre mensagens, uma
               variação por número de cada vez. A partida é em {PARTIDA_S}s e dá pra cancelar até lá.
             </p>
+            {(() => {
+              const nRecentes = gruposSel.filter((g) => emCooldown(g.gid)).length
+              return nRecentes > 0 ? (
+                <p style={{ fontSize: 12.5, color: 'var(--amber)', margin: '8px 0 0' }}>
+                  {nRecentes} dos grupos marcados receberam disparo há menos de {COOLDOWN_H}h
+                  (normal quando os disparos empilham no dia — só confere se é essa a intenção).
+                </p>
+              ) : null
+            })()}
           </div>
 
           <div style={{ marginTop: 12 }}>
