@@ -131,7 +131,11 @@ export const sendflowDisparoPausar = (disparoId: string) =>
 export const sendflowDisparoRetomar = (disparoId: string) =>
   rpc<{ ok: boolean; retomados: number }>('sendflow_disparo_retomar', { p_disparo: disparoId })
 
-// Cooldown de grupo: quando cada gid recebeu disparo pela última vez (pra mesa
-// desmarcar por padrão grupo que recebeu há menos de X horas).
+// Cooldown de grupo: quando cada gid recebeu disparo pela última vez (selo informativo).
 export const sendflowGruposUltimoEnvio = () =>
   rpc<{ gid: string; ultimo_em: string }[]>('sendflow_grupos_ultimo_envio')
+
+// Peterson mexeu nos grupos direto no SendFlow (excluiu suspensos)? A coleta normal e
+// diária (6:05); isto enfileira uma rodada AGORA e o worker de 1 min faz o HTTP.
+export const sendflowAtualizarGrupos = () =>
+  rpc<{ ok: boolean; ja_pendente: boolean; enfileirados: number }>('sendflow_atualizar_grupos')

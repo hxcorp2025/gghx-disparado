@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Send, Users, AtSign, AlertTriangle, Check, Pause, Play, XCircle, Zap, Rocket, Pencil,
+  Send, Users, AtSign, AlertTriangle, Check, Pause, Play, XCircle, Zap, Rocket, Pencil, RefreshCw,
 } from 'lucide-react'
 import type { CopyVariacao } from '../lib/copyDb'
 import {
   sendflowGruposVip, sendflowDisparar, sendflowGruposUltimoEnvio,
   sendflowDisparoStatus, sendflowDisparoCancelar, sendflowDisparoAgora,
-  sendflowDisparoPausar, sendflowDisparoRetomar,
+  sendflowDisparoPausar, sendflowDisparoRetomar, sendflowAtualizarGrupos,
 } from '../lib/sendflowDb'
 import type { SendflowGrupoVip, DisparoStatus, LoteStatus } from '../lib/sendflowDb'
 import { Modal } from './Modal'
@@ -84,6 +84,29 @@ export function DisparoSendflow({
   const [agindo, setAgindo] = useState(false)
   // ajuste de detalhe sem cancelar a copy (PRD_copyia_editar_variacao_2026-08-31)
   const [editandoVar, setEditandoVar] = useState<CopyVariacao | null>(null)
+  const [sincronizando, setSincronizando] = useState(false)
+
+  // Peterson mexeu nos grupos direto no SendFlow (31/08): enfileira a coleta AGORA
+  // (a diária é só 6:05) e re-busca os grupos enquanto o worker de 1 min processa.
+  async function atualizarGrupos() {
+    if (sincronizando) return
+    setSincronizando(true)
+    try {
+      const r = await sendflowAtualizarGrupos()
+      toast(r.ja_pendente
+        ? 'Já tem uma atualização a caminho — os números chegam em ~1 min'
+        : 'Atualização pedida ao SendFlow — os números chegam em ~1 min')
+      ;[30_000, 60_000, 90_000].forEach((ms, i, arr) =>
+        setTimeout(() => {
+          sendflowGruposVip().then(setGrupos).catch(() => {})
+          if (i === arr.length - 1) setSincronizando(false)
+        }, ms),
+      )
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Falhou', true)
+      setSincronizando(false)
+    }
+  }
 
   // cooldown é conveniência: sem ele a mesa segue funcionando
   const carregarCooldown = useCallback(() => {
@@ -506,6 +529,11 @@ export function DisparoSendflow({
             {selGids.size > 0 && (
               <button type="button" className="btn sm ghost" onClick={() => setSelGids(new Set())}>Limpar</button>
             )}
+            <button type="button" className="btn sm ghost" disabled={sincronizando} onClick={atualizarGrupos}
+              title="Excluiu ou criou grupo direto no SendFlow? Puxa a lista de lá agora (a automática é 1x por dia).">
+              <RefreshCw size={13} className={sincronizando ? 'girando' : undefined} />
+              {sincronizando ? 'Atualizando…' : 'Atualizar do SendFlow'}
+            </button>
           </div>
           <p className="mut" style={{ fontSize: 11.5, margin: '0 0 8px' }}>
             O selo mostra há quanto tempo o grupo recebeu o último disparo (âmbar = menos de{' '}
