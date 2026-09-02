@@ -23,14 +23,39 @@ export type Midia = {
 export const LIMITES: Record<MidiaTipo, { max: number; mimes: string[]; rotulo: string }> = {
   imagem: { max: 5 * 1024 * 1024, mimes: ['image/jpeg', 'image/png', 'image/webp'], rotulo: 'JPG/PNG/WebP até 5MB' },
   video: { max: 60 * 1024 * 1024, mimes: ['video/mp4'], rotulo: 'MP4 até 60MB (acima de 16MB pode falhar em aparelho antigo)' },
-  audio: { max: 16 * 1024 * 1024, mimes: ['audio/ogg', 'audio/mpeg'], rotulo: 'OGG (voice note) ou MP3 até 16MB' },
+  audio: { max: 16 * 1024 * 1024, mimes: ['audio/ogg', 'audio/mpeg'], rotulo: 'OGG/OPUS (voice note) ou MP3 até 16MB' },
+}
+
+// O MIME do navegador NÃO é confiável pra áudio no Windows (Peterson, 31/08: "sem a opção
+// de enviar áudio"): .ogg chega como video/ogg ou vazio, e .opus (o áudio do WhatsApp) nem
+// mapeia. Por isso o tipo cai pra EXTENSÃO quando o MIME não resolve.
+const EXT_TIPO: Record<string, MidiaTipo> = {
+  jpg: 'imagem', jpeg: 'imagem', png: 'imagem', webp: 'imagem',
+  mp4: 'video',
+  ogg: 'audio', opus: 'audio', oga: 'audio', mp3: 'audio',
+}
+// mimetype normalizado por extensão: é o que vai de contentType pro bucket (allowlist) e
+// pro catálogo — .opus é container Ogg, então viaja como audio/ogg
+const EXT_MIME: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+  mp4: 'video/mp4',
+  ogg: 'audio/ogg', opus: 'audio/ogg', oga: 'audio/ogg', mp3: 'audio/mpeg',
+}
+
+export function extDoArquivo(f: File): string {
+  return (f.name.split('.').pop() ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
 export function tipoDoArquivo(f: File): MidiaTipo | null {
   if (LIMITES.imagem.mimes.includes(f.type)) return 'imagem'
   if (LIMITES.video.mimes.includes(f.type)) return 'video'
   if (LIMITES.audio.mimes.includes(f.type)) return 'audio'
-  return null
+  return EXT_TIPO[extDoArquivo(f)] ?? null
+}
+
+export function mimeDoArquivo(f: File, tipo: MidiaTipo): string {
+  if (LIMITES[tipo].mimes.includes(f.type)) return f.type
+  return EXT_MIME[extDoArquivo(f)] ?? f.type
 }
 
 export async function listMidias(): Promise<Midia[]> {
@@ -54,9 +79,10 @@ export async function uploadMidia(f: File, nome: string): Promise<Midia> {
   let nomeFinal = (nome.trim() || f.name).slice(0, 80)
   if (nomeFinal.length < 2) nomeFinal = `mídia ${new Date().toLocaleDateString('pt-BR')}`
 
-  const ext = (f.name.split('.').pop() ?? 'bin').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const mime = mimeDoArquivo(f, tipo)
+  const ext = extDoArquivo(f) || 'bin'
   const path = `disparos/${crypto.randomUUID()}.${ext}`
-  const up = await sb.storage.from('gghx-midia').upload(path, f, { contentType: f.type, upsert: false })
+  const up = await sb.storage.from('gghx-midia').upload(path, f, { contentType: mime, upsert: false })
   if (up.error) throw new Error('Upload falhou: ' + up.error.message)
 
   const { data: pub } = sb.storage.from('gghx-midia').getPublicUrl(path)
@@ -68,7 +94,7 @@ export async function uploadMidia(f: File, nome: string): Promise<Midia> {
       nome: nomeFinal,
       path,
       url: pub.publicUrl,
-      mimetype: f.type,
+      mimetype: mime,
       tamanho_bytes: f.size,
       criado_por: me.session?.user?.email ?? null,
       payload: { nome_original: f.name },

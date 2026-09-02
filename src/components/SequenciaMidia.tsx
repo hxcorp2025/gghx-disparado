@@ -126,8 +126,8 @@ export function SequenciaMidia({ blocos, onChange }: { blocos: BlocoUI[]; onChan
       <label><Paperclip size={13} /> Sequência do disparo</label>
       <p className="mut" style={{ fontSize: 12, marginTop: 0 }}>
         O grupo recebe os blocos NESTA ordem. A copy aprovada entra no bloco 📝 — ou vira a
-        legenda de uma imagem/vídeo (aí some o bloco de texto). Áudio ogg sai como voice note;
-        mp3 pode chegar como arquivo comum.
+        legenda de uma imagem/vídeo (aí some o bloco de texto). Áudio ogg/opus sai como voice
+        note; mp3 pode chegar como arquivo comum.
       </p>
 
       {blocos.map((b, i) => (
@@ -171,7 +171,10 @@ export function SequenciaMidia({ blocos, onChange }: { blocos: BlocoUI[]; onChan
         <button type="button" className="btn sm ghost" disabled={subindo} onClick={() => fileRef.current?.click()}>
           <Upload size={13} /> {subindo ? 'Subindo…' : 'Enviar arquivo novo'}
         </button>
-        <input ref={fileRef} type="file" hidden accept="image/jpeg,image/png,image/webp,video/mp4,audio/ogg,audio/mpeg"
+        {/* extensões ALÉM dos mimes: o Windows monta o filtro do seletor por elas — só com
+            mime, .ogg/.opus (áudio do WhatsApp) somem da janela ("sem opção de áudio") */}
+        <input ref={fileRef} type="file" hidden
+          accept="image/jpeg,image/png,image/webp,video/mp4,audio/ogg,audio/mpeg,.jpg,.jpeg,.png,.webp,.mp4,.ogg,.opus,.oga,.mp3"
           onChange={(e) => e.target.files?.[0] && subir(e.target.files[0])} />
       </div>
       <p className="mut" style={{ fontSize: 11, margin: '4px 0 0' }}>
