@@ -89,7 +89,7 @@ const orfas = [...usadas].filter((c) => !definidas.has(c) && !eFragmento(c)).sor
 // estado pode estar so no banco), mas foi assim que apareceu o .vidro morto.
 const semUso = [...definidas]
   .filter((d) => {
-    const solto = new RegExp(`\b${d.replace(/[-]/g, '\-')}\b`)
+    const solto = new RegExp(String.raw`(^|[^\w-])` + d.replace(/-/g, '\-') + String.raw`([^\w-]|$)`)
     return !usadas.has(d) && !solto.test(jsx) && !solto.test(html) && !familias.test(d)
   })
   .sort()
@@ -115,8 +115,14 @@ if (css.includes('url(#vidro-liquido)') && !html.includes('vidro-liquido'))
 
 // travessao no texto que o operador LE (comentario de codigo fica de fora)
 const semComentario = (t) =>
-  t.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
-const comTravessao = tsxPaths.filter((p) => semComentario(readFileSync(p, 'utf8')).includes('—'))
+  t
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+const comTravessao = [...tsxPaths, ...htmlPaths].filter((p) =>
+  semComentario(readFileSync(p, 'utf8')).includes('—'),
+)
 if (comTravessao.length) avisos.push(`travessao em texto de interface: ${comTravessao.map(curto).join(', ')}`)
 
 console.log(`css: ${cssPaths.map(curto).join(', ')}`)
