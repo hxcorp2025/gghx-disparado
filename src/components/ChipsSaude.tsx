@@ -20,7 +20,7 @@ const PADRAO: PoliticaForm = {
 function Barra({ n, total }: { n: number; total: number | null }) {
   if (!total) return null
   const pct = Math.min(100, Math.round((n / total) * 100))
-  const cor = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--amber)' : 'var(--accent)'
+  const cor = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--amber)' : 'var(--ok)'
   return (
     <div style={{ marginTop: 6 }}>
       <div className="row between" style={{ marginBottom: 4 }}>
@@ -140,7 +140,7 @@ export function ChipsSaude({ admin }: { admin: boolean }) {
                 {Math.round((c.intervalo_max_ms ?? 0) / 1000)}s
               </p>
               <p style={{ fontSize: 12.5, margin: '4px 0 0',
-                          color: c.travado_por ? 'var(--amber)' : 'var(--accent)' }}>
+                          color: c.travado_por ? 'var(--amber)' : 'var(--ok)' }}>
                 {c.travado_por ? 'Travado agora: ' + c.travado_por : 'Livre pra enviar agora'}
               </p>
             </>

@@ -10,9 +10,9 @@ export function Toast() {
       closeButton
       toastOptions={{
         style: {
-          background: '#1e1e22',
-          border: '1px solid rgba(255,255,255,0.11)',
-          color: '#ececee',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--hair-strong)',
+          color: 'var(--text)',
         },
       }}
     />

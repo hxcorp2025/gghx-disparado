@@ -4,9 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gestor de Grupos HX — Disparador</title>
+    <meta name="theme-color" content="#08090b" />
+    <title>Send · HX</title>
+    <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/geist-400-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/bricolage-600-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/geist-mono-400-latin.woff2" crossorigin />
   </head>
   <body>
+    <!-- Ondulacao do vidro liquido. Entra por cascata so onde o navegador aceita
+         backdrop-filter: url() e so no desktop (ver .vidro em index.css). -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <filter id="vidro-liquido" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.006 0.009" numOctaves="2" seed="7" result="ruido" />
+        <feDisplacementMap in="SourceGraphic" in2="ruido" scale="14" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

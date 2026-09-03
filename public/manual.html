@@ -3,26 +3,39 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Manual do Gestor de Grupos HX</title>
+<title>Manual do Send</title>
 <style>
+  /* Espelho do src/styles/tokens.css do Send. Pagina estatica servida fora do
+     bundle, entao o :root e repetido aqui de proposito. Mudou la, muda aqui. */
   :root{
-    --bg:#0e1113; --surface:#15191c; --surface2:#1b2024; --line:#252b31; --line2:#333b43;
-    --txt:#e7ecef; --mut:#93a0a9; --accent:#3ecf8e; --amber:#e0a83c; --red:#e5695f;
+    --bg:#08090b; --surface:#0e1013; --surface2:#14161a; --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.14);
+    --txt:#f2f3f5; --mut:#9aa0a8; --accent:#a894ff; --brand:#7c5cff; --amber:#f5a524; --red:#ff4d4d; --ok:#3dd68c;
+    --display:'Bricolage Grotesque','Geist',system-ui,'Segoe UI',sans-serif;
+    --body:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
   }
+  @font-face{font-family:'Geist';font-style:normal;font-weight:400 700;font-display:swap;src:url('/assets/fonts/geist-400-latin.woff2') format('woff2')}
+  @font-face{font-family:'Bricolage Grotesque';font-style:normal;font-weight:600 800;font-display:swap;src:url('/assets/fonts/bricolage-600-latin.woff2') format('woff2')}
+  body::before{
+    content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(900px 600px at 8% -10%, rgba(124,92,255,.16), transparent 60%),
+      radial-gradient(700px 500px at 100% 105%, rgba(255,255,255,.035), transparent 60%);
+  }
+  .wrap{position:relative; z-index:1}
   *{box-sizing:border-box}
   body{
     margin:0; background:var(--bg); color:var(--txt);
-    font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
-    font-size:15px; line-height:1.6; letter-spacing:.01em; font-optical-sizing:auto;
+    font-family:var(--body);
+    font-size:15px; line-height:1.6; font-optical-sizing:auto;
   }
   .wrap{max-width:760px; margin:0 auto; padding:40px 20px 90px}
-  h1{font-size:27px; letter-spacing:-.025em; margin:0 0 6px}
+  h1{font-family:var(--display); font-weight:700; font-size:27px; letter-spacing:-.025em; margin:0 0 6px}
   .sub{color:var(--mut); margin:0 0 34px}
   h2{
-    font-size:19px; letter-spacing:-.02em; margin:44px 0 6px;
+    font-family:var(--display); font-weight:600; font-size:19px; letter-spacing:-.015em; margin:44px 0 6px;
     padding-top:22px; border-top:1px solid var(--line);
   }
-  h3{font-size:15.5px; margin:24px 0 6px}
+  h3{font-family:var(--display); font-weight:600; font-size:15.5px; margin:24px 0 6px}
   p{margin:0 0 12px}
   ol,ul{margin:0 0 12px; padding-left:22px}
   li{margin:0 0 7px}
@@ -30,16 +43,16 @@
     background:var(--surface2); border:1px solid var(--line); border-radius:5px;
     padding:1px 6px; font-size:13px; font-variant-numeric:tabular-nums;
   }
-  .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:16px 0}
+  .card{background:linear-gradient(180deg,var(--surface2),var(--surface)); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin:16px 0; box-shadow:inset 0 1px 0 rgba(255,255,255,.10)}
   .aviso{border-color:var(--amber)}
   .perigo{border-color:var(--red)}
-  .bom{border-color:var(--accent)}
+  .bom{border-color:var(--ok)}
   .card .t{font-weight:650; margin-bottom:5px; display:flex; align-items:center; gap:8px}
   table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14px}
   th,td{text-align:left; padding:9px 11px; border-bottom:1px solid var(--line); vertical-align:top}
-  th{color:var(--mut); font-size:11px; text-transform:uppercase; letter-spacing:.06em}
+  th{color:var(--mut); font-size:10.5px; text-transform:uppercase; letter-spacing:.08em}
   td{font-variant-numeric:tabular-nums}
-  .idx{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:8px}
+  .idx{background:linear-gradient(180deg,var(--surface2),var(--surface)); border:1px solid var(--line); border-radius:14px; padding:14px 18px; margin-bottom:8px; box-shadow:inset 0 1px 0 rgba(255,255,255,.10)}
   .idx a{display:block; color:var(--txt); text-decoration:none; padding:5px 0; border-bottom:1px solid var(--line)}
   .idx a:last-child{border-bottom:none}
   .idx a:hover{color:var(--accent)}
@@ -53,7 +66,7 @@
 
 <a class="voltar" href="/">&larr; Voltar pro app</a>
 
-<h1>Manual do Gestor de Grupos HX</h1>
+<h1>Manual do Send</h1>
 <p class="sub">Como usar cada aba, e principalmente <b>o que o app faz sozinho</b> pra proteger o chip.</p>
 
 <div class="idx">
@@ -176,7 +189,7 @@
   <div class="t">✅ O que o app já faz por você</div>
   <ul style="margin:0">
     <li>As <b>regras da casa entram sozinhas</b> no pedido (ex.: nada de travessão). Não precisa repetir.</li>
-    <li>Variação que <b>quebra uma regra não deixa aprovar</b> — só reprovar e pedir outra.</li>
+    <li>Variação que <b>quebra uma regra não deixa aprovar</b>, só reprovar e pedir outra.</li>
     <li>O <b>tom já sai no jeito Sortudão</b> (prêmio, VIP, raspadinha, sorte), porque a IA estuda os
         disparos de verdade dos grupos, não texto de outro projeto.</li>
   </ul>

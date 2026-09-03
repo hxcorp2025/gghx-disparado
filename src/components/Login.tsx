@@ -24,7 +24,7 @@ export function Login({ onDone }: { onDone: () => void }) {
       <div className="box card">
         <div className="logo" style={{ marginBottom: 6 }}>
           <span className="dot" />
-          Gestor de Grupos <b>HX</b>
+          Send <b>HX</b>
         </div>
         <p className="mut" style={{ margin: '0 0 18px' }}>
           Disparador interno · acesso restrito

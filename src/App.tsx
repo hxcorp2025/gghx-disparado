@@ -68,7 +68,7 @@ export default function App() {
           <div className="brand">
             <span className="dot" />
             <div className="brand-txt">
-              Gestor de Grupos <b>HX</b>
+              Send <b>HX</b>
             </div>
           </div>
           <nav className="navlist">

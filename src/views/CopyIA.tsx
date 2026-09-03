@@ -132,7 +132,7 @@ export function CopyIA() {
         </div>
         <div className="statcard">
           <div className="lbl">Aprovadas</div>
-          <div className="val" style={{ color: 'var(--accent)' }}>{resumo?.aprovadas ?? 0}</div>
+          <div className="val" style={{ color: 'var(--ok)' }}>{resumo?.aprovadas ?? 0}</div>
           <div className="sub">liberadas pro disparo</div>
         </div>
         <div className="statcard">
@@ -321,7 +321,7 @@ export function CopyIA() {
             {viol.length > 0 && editando !== v.id && (
               <p className="st-falha" style={{ fontSize: 12.5, marginTop: 10 }}>
                 Quebra regra da casa: {viol.map((x) => VIOLACAO[x] ?? x).join(' · ')}.
-                Não dá pra aprovar como está — edita o texto ou reprova.
+                Não dá pra aprovar como está. Edita o texto ou reprova.
               </p>
             )}
 

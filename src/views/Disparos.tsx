@@ -311,7 +311,7 @@ export function Disparos() {
               </div>
               <div className="statcard sc-in">
                 <div className="lbl">Entregues</div>
-                <div className="val" style={{ color: 'var(--accent)' }}>
+                <div className="val" style={{ color: 'var(--ok)' }}>
                   {metrics.entregues}
                 </div>
                 <div className="sub">

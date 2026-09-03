@@ -1,0 +1,137 @@
+/* ============================================================
+   Send · sistema de design HX (painel escuro premium)
+   Origem: DESIGN.md do Painel Comercial JA (aprovado 02/09/2026)
+   github.com/hxcorp2025/ja-painel-comercial/blob/main/docs/DESIGN.md
+
+   O que muda por app: a cor de acao e a cor da malha do fundo.
+   Familia HX: JA = vermelho #ff1f2d · SEND = violeta #7c5cff ·
+   CENTRAL = ciano #12c8c0. Escada de superficies, hairlines,
+   tipografia e cores de estado sao iguais nas tres.
+
+   A segunda metade deste arquivo mapeia os nomes de token
+   antigos do Send para este sistema. E o que permite trocar a
+   lingua inteira sem renomear as 116 classes do index.css nem
+   tocar nos var(--...) que vivem dentro do JSX.
+   ============================================================ */
+
+:root {
+  /* --- escada de superficies (vies frio-neutro; nunca preto puro) */
+  --canvas: #08090b;
+  --surface-sunken: #0b0c0f;
+  --surface-1: #0e1013;
+  --surface-2: #14161a;
+  --surface-3: #1a1d21;
+
+  /* --- hairlines: a assinatura do acabamento */
+  --hair: rgba(255, 255, 255, 0.07);
+  --hair-strong: rgba(255, 255, 255, 0.14);
+  --hair-lit: rgba(255, 255, 255, 0.10);   /* fio de luz no topo do cartao */
+
+  /* --- tinta */
+  --text: #f2f3f5;
+  --muted: #9aa0a8;
+  --dim: #5f6670;
+
+  /* --- marca do Send: violeta eletrico */
+  --brand: #7c5cff;
+  --brand-hover: #8f74ff;
+  /* base do gradiente do botao. Branco sobre #7c5cff da 4,3:1, abaixo do minimo
+     de 4,5 para texto normal; com a base mais escura a media do botao sobe para
+     ~4,7:1 e a cor da marca continua sendo a de cima. */
+  --brand-deep: #6d49ff;
+  --brand-text: #a894ff;                    /* violeta com contraste para TEXTO no escuro */
+  --brand-soft: rgba(124, 92, 255, 0.10);
+  --brand-glow: rgba(124, 92, 255, 0.22);
+
+  /* --- estado (forma + cor, nunca so cor) */
+  --ok: #3dd68c;        --ok-soft: rgba(61, 214, 140, 0.10);
+  --atencao: #f5a524;   --atencao-soft: rgba(245, 165, 36, 0.10);
+  --critico: #ff4d4d;   --critico-soft: rgba(255, 77, 77, 0.10);
+  --info: #6fa8ff;      --info-soft: rgba(111, 168, 255, 0.10);
+
+  /* --- series de grafico (proibido: pizza, radar, eixo duplo, 3D) */
+  --serie-1: #a894ff;
+  --serie-2: #6fa8ff;
+  --serie-3: #3dd68c;
+  --serie-4: #f5a524;
+  --serie-5: #ff8fa3;
+  --serie-6: #5fc9c4;
+
+  /* --- tipografia (self-host: fonts.css) */
+  --display: 'Bricolage Grotesque', 'Geist', system-ui, 'Segoe UI', sans-serif;
+  --body: 'Geist', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', Menlo, monospace;
+
+  /* --- forma e ritmo */
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+  --vidro-bg: rgba(14, 16, 19, 0.62);
+  --vidro-blur: 14px;
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   Ponte com os nomes antigos do Send.
+   Um alias por token do design system v3. Quem le index.css ou
+   o JSX continua vendo --accent, --surface2, --line; quem manda
+   e o bloco de cima.
+   ============================================================ */
+:root {
+  --bg: var(--canvas);
+  --sidebar: var(--surface-sunken);
+  --surface: var(--surface-1);
+  --surface2: var(--surface-2);
+  --overlay: var(--surface-3);
+  --elevated: var(--surface-3);
+
+  --line: var(--hair);
+  --line2: var(--hair-strong);
+  --line3: var(--hair-strong);
+
+  --txt: var(--text);
+  --mut: var(--muted);
+  --mut2: var(--dim);
+
+  --accent: var(--brand);
+  --accent-press: var(--brand-hover);
+  --accent-ink: #ffffff;                    /* violeta pede tinta branca, nao escura */
+  /* os -tint sao fundo de badge e chip: 0.14 em vez do 0.10 dos
+     acabamentos, senao pill de status perde presenca em tela densa */
+  --accent-tint: rgba(124, 92, 255, 0.14);
+  --red: var(--critico);   --red-tint: rgba(255, 77, 77, 0.14);
+  --amber: var(--atencao); --amber-tint: rgba(245, 165, 36, 0.14);
+  --blue: var(--info);     --blue-tint: rgba(111, 168, 255, 0.14);
+
+  --r-card: var(--r-lg);
+  --r-btn: var(--r-sm);
+  --r-input: var(--r-sm);
+
+  /* curva unica do app (decisao do v3: anda rapido e assenta no fim) */
+  --curva: cubic-bezier(0.2, 0, 0, 1);
+  --ease: var(--curva);                     /* estava indefinido: matava a transicao do .actioncard */
+  --border: var(--hair);                    /* estava indefinido: sumia a borda em SequenciaMidia */
+  --t-fast: 120ms var(--curva);
+  --t: 160ms var(--curva);
+
+  --font: var(--body);
+  --sh-float: 0 12px 34px -8px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* Malha atmosferica: a profundidade vem de luz, nao de sombra.
+   Fixa e composta uma vez; nao repinta ao rolar. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 600px at 8% -10%, rgba(124, 92, 255, 0.16), transparent 60%),
+    radial-gradient(700px 500px at 100% 105%, rgba(255, 255, 255, 0.035), transparent 60%),
+    radial-gradient(1200px 800px at 50% 50%, rgba(255, 255, 255, 0.012), transparent 70%);
+}
+
+#root { position: relative; z-index: 1; }

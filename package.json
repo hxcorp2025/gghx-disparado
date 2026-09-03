@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verifica": "node scripts/verifica-estilo.mjs",
+    "fontes": "node scripts/fetch-fonts.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",

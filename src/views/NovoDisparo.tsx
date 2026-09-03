@@ -379,7 +379,7 @@ export function NovoDisparo({ goTo }: { goTo: (v: ViewId) => void }) {
               </div>
               <div />
             </div>
-            <p className="mut" style={{ color: riscoBan ? '#e5484d' : undefined }}>
+            <p className="mut" style={{ color: riscoBan ? 'var(--critico)' : undefined }}>
               {riscoBan
                 ? `⚠️ RISCO DE BAN: ${intervalo}s ≈ ${Math.round(60 / Math.max(1, intervalo))} grupos/min (acima do seguro ~8/min). Recomendado ≥ 60s.`
                 : `⏱️ Espera de ${intervalo}s a ${intervalo + jitter}s entre cada grupo. Reduz risco de bloqueio.`}

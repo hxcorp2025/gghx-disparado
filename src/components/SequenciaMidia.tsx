@@ -22,7 +22,7 @@ export function blocosParaRpc(blocos: BlocoUI[]) {
 }
 
 export function sequenciaValida(blocos: BlocoUI[]): string | null {
-  if (blocos.length > 6) return 'Máximo de 6 blocos por disparo (anti-flood do grupo) — tira um antes de disparar.'
+  if (blocos.length > 6) return 'Máximo de 6 blocos por disparo (anti-flood do grupo). Tira um antes de disparar.'
   const slots =
     blocos.filter((b) => b.tipo === 'copy').length +
     blocos.filter((b) => b.tipo === 'midia' && b.legendaCopy).length
@@ -109,7 +109,7 @@ export function SequenciaMidia({ blocos, onChange }: { blocos: BlocoUI[]; onChan
 
   async function tirarDaBiblioteca(m: Midia) {
     if (blocos.some((b) => b.tipo === 'midia' && b.midia.id === m.id)) {
-      toast('Essa mídia está na sequência atual — tira dela primeiro.', true)
+      toast('Essa mídia está na sequência atual, tira dela primeiro.', true)
       return
     }
     try {
@@ -125,7 +125,7 @@ export function SequenciaMidia({ blocos, onChange }: { blocos: BlocoUI[]; onChan
     <div className="field">
       <label><Paperclip size={13} /> Sequência do disparo</label>
       <p className="mut" style={{ fontSize: 12, marginTop: 0 }}>
-        O grupo recebe os blocos NESTA ordem. A copy aprovada entra no bloco 📝 — ou vira a
+        O grupo recebe os blocos NESTA ordem. A copy aprovada entra no bloco 📝, ou vira a
         legenda de uma imagem/vídeo (aí some o bloco de texto). Áudio ogg/opus sai como voice
         note; mp3 pode chegar como arquivo comum.
       </p>
@@ -184,7 +184,7 @@ export function SequenciaMidia({ blocos, onChange }: { blocos: BlocoUI[]; onChan
 
       {abrindo && (
         <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-          {biblioteca.length === 0 && <p className="mut" style={{ fontSize: 12 }}>Biblioteca vazia — sobe o primeiro arquivo.</p>}
+          {biblioteca.length === 0 && <p className="mut" style={{ fontSize: 12 }}>Biblioteca vazia, sobe o primeiro arquivo.</p>}
           {biblioteca.map((m) => (
             <div key={m.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 8 }}>
               <div className="row between" style={{ marginBottom: 6 }}>

@@ -94,8 +94,8 @@ export function DisparoSendflow({
     try {
       const r = await sendflowAtualizarGrupos()
       toast(r.ja_pendente
-        ? 'Já tem uma atualização a caminho — os números chegam em ~1 min'
-        : 'Atualização pedida ao SendFlow — os números chegam em ~1 min')
+        ? 'Já tem uma atualização a caminho, os números chegam em ~1 min'
+        : 'Atualização pedida ao SendFlow, os números chegam em ~1 min')
       ;[30_000, 60_000, 90_000].forEach((ms, i, arr) =>
         setTimeout(() => {
           sendflowGruposVip().then(setGrupos).catch(() => {})
@@ -283,11 +283,11 @@ export function DisparoSendflow({
     try {
       const r = await sendflowDisparoCancelar(vivoId)
       if (r.ja_no_motor > 0) {
-        toast(`${r.cancelados} lotes cancelados — ${r.ja_no_motor} já estavam no motor e vão até o fim`, true)
+        toast(`${r.cancelados} lotes cancelados, ${r.ja_no_motor} já estavam no motor e vão até o fim`, true)
         const s = await sendflowDisparoStatus(vivoId).catch(() => null)
         if (s) setSt(s)
       } else {
-        toast('Disparo cancelado — nada foi enviado')
+        toast('Disparo cancelado, nada foi enviado')
         encerrarVivo(false)
       }
     } catch (e) {
@@ -332,7 +332,7 @@ export function DisparoSendflow({
         {armado ? (
           <div className="armado">
             <p className="mut" style={{ margin: '0 0 6px', fontSize: 13 }}>
-              Disparo armado — parte em
+              Disparo armado, parte em
             </p>
             <div className="cd">{faltam}s</div>
             <p className="mut" style={{ fontSize: 12.5, margin: '10px auto 18px', maxWidth: 420 }}>
@@ -344,7 +344,7 @@ export function DisparoSendflow({
               <button
                 className="btn"
                 disabled={agindo}
-                onClick={() => acao(() => sendflowDisparoAgora(vivoId), 'Partida liberada — o motor pega no próximo minuto')}
+                onClick={() => acao(() => sendflowDisparoAgora(vivoId), 'Partida liberada, o motor pega no próximo minuto')}
               >
                 <Zap size={15} /> Começar já
               </button>
@@ -362,7 +362,7 @@ export function DisparoSendflow({
             <p className="mut" style={{ fontSize: 12.5, marginTop: 0 }}>
               {terminou
                 ? 'Todos os lotes foram processados. O envio grupo a grupo segue o ritmo do motor do SendFlow.'
-                : 'Lote entregue ao motor não tem volta — pausar/cancelar vale só pro que ainda está na fila.'}
+                : 'Lote entregue ao motor não tem volta. Pausar ou cancelar vale só pro que ainda está na fila.'}
             </p>
 
             <div className="pbar" style={{ margin: '10px 0 6px' }}>
@@ -462,7 +462,7 @@ export function DisparoSendflow({
           </div>
           <p className="mut" style={{ fontSize: 12, margin: '0 0 10px' }}>
             Cada copy escolhida vira um braço do teste: os grupos são divididos entre elas
-            (round-robin) pra medir qual segura mais o grupo. Clica pra escolher — a última clicada
+            (round-robin) pra medir qual segura mais o grupo. Clica pra escolher, a última clicada
             aparece no celular ao lado.
           </p>
           {porPedido.map(({ fid, vs }) => (
@@ -537,7 +537,7 @@ export function DisparoSendflow({
           </div>
           <p className="mut" style={{ fontSize: 11.5, margin: '0 0 8px' }}>
             O selo mostra há quanto tempo o grupo recebeu o último disparo (âmbar = menos de{' '}
-            {COOLDOWN_H}h). É só informação — marcar em bloco marca todo mundo.
+            {COOLDOWN_H}h). É só informação, marcar em bloco marca todo mundo.
           </p>
           {erroGrupos && <p className="st-falha" style={{ fontSize: 12 }}>{erroGrupos}</p>}
           {grupos.length > 0 && (
@@ -579,13 +579,13 @@ export function DisparoSendflow({
             ))}
           </div>
           <p className="mut" style={{ fontSize: 12, margin: '0 0 10px' }}>
-            Cada número dispara <b>uma variação por vez</b> — nunca dois templates ao mesmo tempo no
+            Cada número dispara <b>uma variação por vez</b>, nunca dois templates ao mesmo tempo no
             mesmo chip. Números diferentes (VIP 01 e 02) vão em paralelo.
           </p>
           <label className="row" style={{ gap: 8, cursor: 'pointer', margin: 0 }}>
             <input type="checkbox" checked={mencao} onChange={(e) => setMencao(e.target.checked)} />
             <AtSign size={15} /> Mencionar todos os participantes
-            <span className="mut" style={{ fontSize: 12 }}>(padrão desligado — menos queda de grupo; volta a desligar a cada disparo)</span>
+            <span className="mut" style={{ fontSize: 12 }}>(padrão desligado, menos queda de grupo; volta a desligar a cada disparo)</span>
           </label>
         </div>
 
@@ -641,14 +641,14 @@ export function DisparoSendflow({
       {revisando && (
         <Modal
           title="Revisão do disparo"
-          sub="Confere tudo aqui — depois da partida, lote que entra no motor não volta."
+          sub="Confere tudo aqui: depois da partida, lote que entra no motor não volta."
           onClose={() => !enviando && setRevisando(false)}
         >
           <div className="card" style={{ borderColor: 'var(--amber)', marginTop: 0 }}>
             <div className="row" style={{ gap: 8 }}>
               <AlertTriangle size={16} style={{ color: 'var(--amber)' }} />
               <b>
-                Vai para {gruposSel.length} grupos · ≈{pessoas.toLocaleString('pt-BR')} pessoas — de verdade.
+                Vai para {gruposSel.length} grupos · ≈{pessoas.toLocaleString('pt-BR')} pessoas, de verdade.
               </b>
             </div>
             <p className="mut" style={{ fontSize: 12.5, marginBottom: 0 }}>
@@ -660,7 +660,7 @@ export function DisparoSendflow({
               return nRecentes > 0 ? (
                 <p style={{ fontSize: 12.5, color: 'var(--amber)', margin: '8px 0 0' }}>
                   {nRecentes} dos grupos marcados receberam disparo há menos de {COOLDOWN_H}h
-                  (normal quando os disparos empilham no dia — só confere se é essa a intenção).
+                  (normal quando os disparos empilham no dia, só confere se é essa a intenção).
                 </p>
               ) : null
             })()}

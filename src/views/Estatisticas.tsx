@@ -75,7 +75,7 @@ export function Estatisticas() {
         </div>
         <div className="statcard sc-in">
           <div className="lbl">Entraram</div>
-          <div className="val" style={{ color: 'var(--accent)' }}>
+          <div className="val" style={{ color: 'var(--ok)' }}>
             +{mov.entradas}
           </div>
           <div className="sub">últimos {dias} dias</div>
@@ -89,7 +89,7 @@ export function Estatisticas() {
         </div>
         <div className="statcard sc-saldo">
           <div className="lbl">Crescimento</div>
-          <div className="val" style={{ color: mov.entradas - mov.saidas >= 0 ? 'var(--accent)' : 'var(--red)' }}>
+          <div className="val" style={{ color: mov.entradas - mov.saidas >= 0 ? 'var(--ok)' : 'var(--red)' }}>
             {mov.entradas - mov.saidas >= 0 ? '+' : ''}
             {mov.entradas - mov.saidas}
           </div>
@@ -210,7 +210,7 @@ export function Estatisticas() {
                         </td>
                         <td style={{ textAlign: 'right' }}>{c.disparos}</td>
                         <td style={{ textAlign: 'right' }}>{c.enviadas.toLocaleString('pt-BR')}</td>
-                        <td style={{ textAlign: 'right', color: 'var(--accent)' }}>
+                        <td style={{ textAlign: 'right', color: 'var(--ok)' }}>
                           {c.entregues.toLocaleString('pt-BR')}
                         </td>
                         <td style={{ textAlign: 'right', color: 'var(--blue)' }}>

@@ -16,7 +16,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(erro: Error, info: ErrorInfo) {
-    console.error('Gestor de Grupos HX quebrou:', erro, info.componentStack)
+    console.error('Send quebrou:', erro, info.componentStack)
   }
 
   render() {
