@@ -130,6 +130,20 @@ O texto abaixo é o runbook original (histórico / passos que já foram executad
 
 ---
 
+## 0.3 Painel de Estatisticas (03/09/2026) — a tela saiu do motor proprio
+
+A aba **Estatisticas** parou de ler `gghx_*` e passou a ler o coletor do SendFlow.
+Motivo medido: `gghx_mensagens`/`gghx_grupo_movimentos` sem dado desde **13/07** e
+`gghx_grupos` desde **11/08**, entao a tela mostrava 60 grupos e 0 entradas enquanto
+a operacao real tinha 101 grupos e 70,53% de taxa de entrada.
+
+RPC unica `sendflow_painel(p_dias)`, gate `mod_is_operador()`, 77ms em 90 dias.
+Runbook, armadilhas e o jeito certo de testar: **`backend/painel_estatisticas.sql`**.
+
+O motor proprio de DISPARO continua funcionando: o que saiu foi so a leitura de
+metrica morta. Consequencia conhecida: hoje nao existe tela no Send que responda
+"o disparo de ontem entregou?".
+
 ## 1. Agendamento (Fase 2)
 
 **Arquivo:** [`agendamento.sql`](./agendamento.sql) — poller Supabase-native (pg_cron + pg_net), sem n8n.

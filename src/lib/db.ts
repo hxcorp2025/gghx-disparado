@@ -281,31 +281,6 @@ export async function getDisparoMetrics(disparoId: number): Promise<DisparoMetri
   }
 }
 
-export type DispPorCampanha = {
-  lista_id: number | null
-  campanha: string
-  disparos: number
-  enviadas: number
-  entregues: number
-  lidas: number
-  ultimo: string | null
-}
-
-// agregado de disparos agrupados por campanha (lista de origem). RPC definer.
-export async function disparosPorCampanha(): Promise<DispPorCampanha[]> {
-  const { data, error } = await sb.rpc('gghx_disparos_por_campanha')
-  if (error) throw error
-  return (data ?? []).map((r: Record<string, unknown>) => ({
-    lista_id: r.lista_id == null ? null : Number(r.lista_id),
-    campanha: String(r.campanha ?? '(sem campanha)'),
-    disparos: Number(r.disparos ?? 0),
-    enviadas: Number(r.enviadas ?? 0),
-    entregues: Number(r.entregues ?? 0),
-    lidas: Number(r.lidas ?? 0),
-    ultimo: (r.ultimo as string) ?? null,
-  }))
-}
-
 // ===== controle de disparo (pausar / cancelar / retomar / reenviar) =====
 export async function setDisparoStatus(disparoId: number, status: string): Promise<void> {
   const { error } = await sb.from(T.disparos).update({ status }).eq('id', disparoId)
@@ -323,50 +298,6 @@ export async function reenviarItens(disparoId: number, deStatus: 'falha' | 'pula
   await sb.from(T.disparoItens).update({ status: 'pendente', erro: null }).eq('campanha_id', disparoId).eq('status', deStatus)
   await setDisparoStatus(disparoId, 'pausada')
   return chamarMotor(disparoId)
-}
-
-// ===== dashboard (RPCs de agregação diária) =====
-export type StatDia = { dia: string; enviadas: number; entregues: number; lidas: number }
-export async function statsDiario(dias = 14): Promise<StatDia[]> {
-  const { data, error } = await sb.rpc('gghx_stats_diario', { p_dias: dias })
-  if (error) throw error
-  return (data ?? []) as StatDia[]
-}
-export type DisparoDia = { dia: string; n: number }
-export async function disparosDiario(dias = 14): Promise<DisparoDia[]> {
-  const { data, error } = await sb.rpc('gghx_disparos_diario', { p_dias: dias })
-  if (error) throw error
-  return (data ?? []) as DisparoDia[]
-}
-
-// ===== estatísticas =====
-export async function getMovimentosResumo(dias: number): Promise<{ entradas: number; saidas: number }> {
-  const desde = new Date(Date.now() - dias * 86400000).toISOString()
-  const { data, error } = await sb.from(T.movimentos).select('tipo').gte('momento', desde).limit(50000)
-  if (error) throw error
-  let entradas = 0
-  let saidas = 0
-  ;(data ?? []).forEach((m: { tipo: string }) => (m.tipo === 'entrada' ? entradas++ : saidas++))
-  return { entradas, saidas }
-}
-
-export type Aviso = {
-  id: number
-  instancia: string | null
-  evento: string | null
-  motivo: string | null
-  momento: string | null
-  received_at: string | null
-}
-
-export async function listAvisos(limit = 30): Promise<Aviso[]> {
-  const { data, error } = await sb
-    .from(T.instanciaStatus)
-    .select('id,instancia,evento,motivo,momento,received_at')
-    .order('received_at', { ascending: false })
-    .limit(limit)
-  if (error) throw error
-  return (data ?? []) as Aviso[]
 }
 
 // ===== templates de mensagem =====
@@ -531,3 +462,9 @@ export async function uploadMidia(file: File): Promise<string> {
   if (error) throw error
   return sb.storage.from('gghx-midia').getPublicUrl(path).data.publicUrl
 }
+
+// As leituras do motor proprio (gghx_mensagens, gghx_grupo_movimentos, gghx_eventos)
+// sairam daqui em 03/09/2026: a operacao migrou o disparo pro SendFlow e essas
+// tabelas pararam de receber dado em 13/07. A tela de Estatisticas agora le o
+// coletor do SendFlow (sendflowDb.ts). O disparo pelo motor proprio continua
+// funcionando; o que saiu foi so a leitura de metrica morta.

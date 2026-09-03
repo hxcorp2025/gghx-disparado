@@ -9,9 +9,10 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  ReferenceArea,
 } from 'recharts'
 import { useMemo } from 'react'
-import type { StatDia, DisparoDia } from '../lib/db'
+import type { SendflowDia } from '../lib/sendflowDb'
 
 // O recharts pinta SVG com string literal em stroke/fill, entao nao enxerga
 // var(--...). Em vez de repetir os hex aqui (era o que fazia o grafico ficar
@@ -27,9 +28,9 @@ const paleta = () => ({
   grade: tok('--hair', 'rgba(255,255,255,0.07)'),
   eixo: tok('--dim', '#5f6670'),
   marca: tok('--serie-1', '#a894ff'),
-  enviadas: tok('--serie-4', '#f5a524'),
-  entregues: tok('--serie-3', '#3dd68c'),
-  lidas: tok('--serie-2', '#6fa8ff'),
+  entradas: tok('--serie-3', '#3dd68c'),
+  saidas: tok('--critico', '#ff4d4d'),
+  cliques: tok('--serie-2', '#6fa8ff'),
   dica: {
     background: tok('--surface-2', '#14161a'),
     border: `1px solid ${tok('--hair-strong', 'rgba(255,255,255,0.14)')}`,
@@ -44,57 +45,77 @@ const fmtDia = (d: string) => {
   const [, m, dd] = d.split('-')
   return `${dd}/${m}`
 }
+const fmtN = (n: number) => n.toLocaleString('pt-BR')
 
-// Entregas por dia (enviadas / entregues / lidas)
-export function EntregasChart({ data }: { data: StatDia[] }) {
+// Movimento das comunidades por dia: quem clicou, quem entrou, quem saiu.
+export function FunilChart({ data }: { data: SendflowDia[] }) {
   const c = useMemo(paleta, [])
+  // O coletor roda de madrugada, entao o dia de hoje entra com uma fracao do
+  // movimento e desenha um penhasco falso no fim da linha. Fica sombreado.
+  const parcial = data.find((d) => d.parcial)?.dia
   return (
-    <ResponsiveContainer width="100%" height={230}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={240}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, left: -14, bottom: 0 }}>
         <defs>
-          <linearGradient id="gEnv" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={c.enviadas} stopOpacity={0.35} />
-            <stop offset="100%" stopColor={c.enviadas} stopOpacity={0} />
+          <linearGradient id="gCli" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={c.cliques} stopOpacity={0.28} />
+            <stop offset="100%" stopColor={c.cliques} stopOpacity={0} />
           </linearGradient>
           <linearGradient id="gEnt" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={c.entregues} stopOpacity={0.35} />
-            <stop offset="100%" stopColor={c.entregues} stopOpacity={0} />
+            <stop offset="0%" stopColor={c.entradas} stopOpacity={0.35} />
+            <stop offset="100%" stopColor={c.entradas} stopOpacity={0} />
           </linearGradient>
-          <linearGradient id="gLid" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={c.lidas} stopOpacity={0.35} />
-            <stop offset="100%" stopColor={c.lidas} stopOpacity={0} />
+          <linearGradient id="gSai" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={c.saidas} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={c.saidas} stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke={c.grade} vertical={false} />
-        <XAxis dataKey="dia" tickFormatter={fmtDia} stroke={c.eixo} fontSize={11} tickLine={false} axisLine={false} />
-        <YAxis stroke={c.eixo} fontSize={11} tickLine={false} axisLine={false} width={34} />
-        <Tooltip contentStyle={c.dica} labelFormatter={(l) => fmtDia(String(l))} />
+        {parcial && (
+          <ReferenceArea x1={parcial} x2={parcial} fill={c.eixo} fillOpacity={0.18} ifOverflow="extendDomain" />
+        )}
+        <XAxis
+          dataKey="dia"
+          tickFormatter={(d) => (d === parcial ? 'hoje' : fmtDia(String(d)))}
+          stroke={c.eixo} fontSize={11} tickLine={false} axisLine={false}
+        />
+        <YAxis stroke={c.eixo} fontSize={11} tickLine={false} axisLine={false} width={42} tickFormatter={fmtN} />
+        <Tooltip
+          contentStyle={c.dica}
+          labelFormatter={(l) => (l === parcial ? 'hoje, parcial' : fmtDia(String(l)))}
+          formatter={(v) => fmtN(Number(v))}
+        />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Area type="monotone" dataKey="enviadas" name="Enviadas" stroke={c.enviadas} fill="url(#gEnv)" strokeWidth={2} />
-        <Area type="monotone" dataKey="entregues" name="Entregues" stroke={c.entregues} fill="url(#gEnt)" strokeWidth={2} />
-        <Area type="monotone" dataKey="lidas" name="Lidas" stroke={c.lidas} fill="url(#gLid)" strokeWidth={2} />
+        <Area type="monotone" dataKey="cliques" name="Cliques no convite" stroke={c.cliques} fill="url(#gCli)" strokeWidth={2} />
+        <Area type="monotone" dataKey="entradas" name="Entraram" stroke={c.entradas} fill="url(#gEnt)" strokeWidth={2} />
+        <Area type="monotone" dataKey="saidas" name="Saíram" stroke={c.saidas} fill="url(#gSai)" strokeWidth={2} />
       </AreaChart>
     </ResponsiveContainer>
   )
 }
 
-// Disparos por dia (barras)
-export function DisparosChart({ data }: { data: DisparoDia[] }) {
+// Receita das comunidades por dia. E o numero que o painel do SendFlow nao tem:
+// vem do cruzamento com as vendas do Sortudao.
+export function ReceitaChart({ data }: { data: { dia: string; receita: number; vendas: number }[] }) {
   const c = useMemo(paleta, [])
+  const brl = (n: number) => 'R$ ' + Number(n).toLocaleString('pt-BR')
   return (
-    <ResponsiveContainer width="100%" height={230}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: -6, bottom: 0 }}>
         <defs>
-          <linearGradient id="gBar" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="gRec" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={c.marca} stopOpacity={1} />
             <stop offset="100%" stopColor={c.marca} stopOpacity={0.35} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke={c.grade} vertical={false} />
         <XAxis dataKey="dia" tickFormatter={fmtDia} stroke={c.eixo} fontSize={11} tickLine={false} axisLine={false} />
-        <YAxis stroke={c.eixo} fontSize={11} tickLine={false} axisLine={false} width={34} allowDecimals={false} />
-        <Tooltip contentStyle={c.dica} labelFormatter={(l) => fmtDia(String(l))} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-        <Bar dataKey="n" name="Disparos" fill="url(#gBar)" radius={[5, 5, 0, 0]} maxBarSize={38} />
+        <YAxis stroke={c.eixo} fontSize={11} tickLine={false} axisLine={false} width={58}
+               tickFormatter={(n) => 'R$ ' + Number(n).toLocaleString('pt-BR')} />
+        <Tooltip contentStyle={c.dica} labelFormatter={(l) => fmtDia(String(l))}
+                 formatter={(v, n) => (n === 'Receita' ? brl(Number(v)) : fmtN(Number(v)))}
+                 cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+        <Bar dataKey="receita" name="Receita" fill="url(#gRec)" radius={[5, 5, 0, 0]} maxBarSize={38} />
       </BarChart>
     </ResponsiveContainer>
   )

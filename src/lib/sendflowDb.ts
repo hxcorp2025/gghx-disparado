@@ -139,3 +139,59 @@ export const sendflowGruposUltimoEnvio = () =>
 // diária (6:05); isto enfileira uma rodada AGORA e o worker de 1 min faz o HTTP.
 export const sendflowAtualizarGrupos = () =>
   rpc<{ ok: boolean; ja_pendente: boolean; enfileirados: number }>('sendflow_atualizar_grupos')
+
+// ===== Painel de Estatisticas =====
+// A tela de Estatisticas lia o motor proprio (gghx_*), que a operacao abandonou em
+// julho: por isso mostrava 0 entradas, 0% de leitura e 60 grupos enquanto o SendFlow
+// tinha 106. Agora le o coletor do SendFlow, que roda desde 11/08 e chega sozinho.
+// Uma RPC so: as tabelas sendflow_* tem RLS sem policy (authenticated nao le nenhuma)
+// e a view sendflow_funil_dia esta filtrada em 2 campanhas, entao nao serve pro total.
+
+export type SendflowDia = {
+  dia: string; cliques: number; entradas: number; saidas: number; saldo: number
+  /** o cron de analytics roda 3h05, entao o dia de hoje sempre vem pela metade */
+  parcial: boolean
+}
+export type SendflowCampanha = {
+  release_id: string
+  campanha: string
+  modo_criacao: string | null
+  pessoas_ativas: number
+  grupos_vivos: number
+  grupos_sumidos: number
+  /** grupos que morreram DENTRO da janela: quem estava neles sumiu sem passar
+   *  por "saiu", entao o saldo desta campanha no periodo esta incompleto */
+  grupos_sumidos_periodo: number
+  entradas_periodo: number
+  saidas_periodo: number
+}
+export type SendflowChip = {
+  nome: string
+  situacao: string
+  tipo: string
+  plataforma: string | null
+  suspenso: string
+  ultimo_motivo_queda: string | null
+  atualizado: string | null
+}
+export type SendflowMorto = { nome: string | null; campanha: string | null; sumiu_em: string }
+
+export type SendflowPainel = {
+  periodo_dias: number
+  topo: { clicks: number; entradas: number; saidas: number; saldo: number; pct_entrada: number | null }
+  grupos: { total: number; cheios: number; livres: number; participantes: number; mortos: number }
+  serie: SendflowDia[]
+  campanhas: SendflowCampanha[]
+  receita: {
+    total: number; vendas: number
+    dias: { dia: string; vendas: number; receita: number }[]
+    /** primeiro dia com venda de comunidade: a tela nunca promete periodo sem dado */
+    desde: string | null
+  }
+  chips: SendflowChip[]
+  mortos: SendflowMorto[]
+  frescor: { analytics: string | null; grupos: string | null; chips: string | null; agora: string }
+}
+
+export const sendflowPainel = (dias: number) =>
+  rpc<SendflowPainel>('sendflow_painel', { p_dias: dias })

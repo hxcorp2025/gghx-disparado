@@ -162,10 +162,6 @@ input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); c
 .modal-body { padding: 16px 20px 20px; overflow-y: auto; }
 @keyframes modalfade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* card clicável (abre modal) */
-.statcard.clickable { cursor: pointer; }
-.statcard.clickable:hover { border-color: var(--line3); }
-
 /* ---------- forms ---------- */
 .field { margin-bottom: 16px; }
 .field label { display: block; margin-bottom: 7px; font-weight: 550; font-size: 13px; color: var(--txt); }
@@ -196,6 +192,32 @@ input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); c
 .statcard.sc-in .lbl::before { background: var(--ok); }
 .statcard.sc-out .lbl::before { background: var(--critico); }
 .statcard.sc-saldo .lbl::before { background: var(--atencao); }
+
+/* numero de tabela: mono tabular, senao coluna alinhada a direita dança */
+td.num, th.num { text-align: right; }
+td.num { font-family: var(--mono); font-size: 12.75px; font-weight: 500; font-feature-settings: 'tnum', 'ss03'; }
+/* data de evento: alinhada e legivel, e NAO some no celular como .gid */
+td.quando { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--mut); font-size: 12px; }
+/* tabela densa rola por dentro em vez de espremer a coluna de texto */
+.tabela-min { min-width: 520px; }
+
+/* ---------- camada didatica ----------
+   Metrica sem "como ler" deixa quem usa pra tras. Fica a um clique, nunca em
+   tooltip: tooltip nao existe no celular e some quando o dedo sai. */
+.ajuda { margin-top: 6px; }
+.ajuda summary {
+  cursor: pointer; font-size: 11.5px; font-weight: 500; color: var(--brand-text);
+  list-style: none; width: max-content;
+  transition: color var(--t);
+}
+.ajuda summary::-webkit-details-marker { display: none; }
+.ajuda summary::before { content: '▸\00a0'; color: var(--dim); }
+.ajuda[open] summary::before { content: '▾\00a0'; }
+.ajuda summary:hover { color: var(--txt); }
+.ajuda p {
+  margin: 8px 0 0; font-size: 12.5px; color: var(--mut); line-height: 1.5;
+  border-left: 2px solid var(--line2); padding-left: 10px;
+}
 
 /* ---------- list rows ---------- */
 .listrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 9px; background: linear-gradient(180deg, var(--surface-2), var(--surface-1)); box-shadow: inset 0 1px 0 var(--hair-lit); transition: border-color var(--t), background var(--t); }
