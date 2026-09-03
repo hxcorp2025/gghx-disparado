@@ -1,0 +1,159 @@
+-- =====================================================================
+-- ENCURTADOR HX (lnk_*) — runbook
+-- Criado em 03/09/2026. Substitui o esquema splitter_* (que estava vazio
+-- desde 08/2026 e tinha policies anon_read USING true).
+--
+-- Este arquivo NÃO é executável de ponta a ponta: é o mapa de quem faz o
+-- quê, mais as armadilhas que já custaram tempo. As migrations reais estão
+-- aplicadas no Supabase ntavetjmfotlwmcgwsju (lnk_01 a lnk_13).
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- ONDE CADA COISA RODA
+-- ---------------------------------------------------------------------
+-- Painel .......... este repo, aba Links (src/views/Links.tsx)
+-- Redirector ...... Cloudflare Worker "hx-links", repo PRIVADO hx-links
+--                   no ar em https://l.hx-corp.com/<slug>
+-- Fonte de verdade  Postgres (tabelas lnk_*)
+-- Cache de leitura  Workers KV, namespace hx-links-cache
+--                   4529e1b8422148a99b660693c54c2bbe, chave l:<host>:<slug>
+--
+-- O painel NUNCA fala com a Cloudflare. Ele grava no Postgres, um trigger
+-- enfileira em lnk_kv_fila, e o cron lnk_kv_worker_10s publica no KV.
+-- Motivo: o papel authenticated tem statement_timeout de 8s e RPC de painel
+-- que faz HTTP trava a tela ([[rpc_painel_nunca_faz_http]]).
+
+-- ---------------------------------------------------------------------
+-- CRONS
+-- ---------------------------------------------------------------------
+-- lnk_kv_worker_10s       10 seconds   publica links editados no KV
+-- lnk_dominio_worker_1min 1 min        provisiona domínio novo na Cloudflare
+-- lnk_rollup_5min         5 min        agrega lnk_cliques -> lnk_cliques_dia
+--
+-- pg_cron aceita intervalo em segundos neste projeto (evo_worker_10s já roda
+-- assim desde 08/2026). Por isso a propagação de uma edição fica em ~10s em
+-- vez do minuto do cron clássico.
+
+-- ---------------------------------------------------------------------
+-- SEGURANÇA
+-- ---------------------------------------------------------------------
+-- Todas as lnk_* têm RLS ligada e ZERO policy: fechado por padrão.
+-- O painel não lê nada direto; tudo passa por RPC security definer com gate
+-- mod_is_operador(). Este repo é PÚBLICO e publica o nome da RPC, então
+-- esconder botão no front não é permissão.
+--
+-- O Worker NÃO usa service_role nem JWT de serviço. Ele manda um token
+-- próprio (secret EDGE_TOKEN), comparado pelo SHA-256 em lnk_edge_tokens;
+-- o token cru vive só no Worker e no Vault (lnk_edge_token_worker).
+-- Se o Worker vazar, o escopo do estrago é: resolver um link e gravar um
+-- clique. Nada mais.
+--
+-- Conferir a qualquer momento (tem que dar false em todas):
+--   select relname, has_table_privilege('anon','public.'||relname,'SELECT')
+--   from pg_class where relname like 'lnk\_%' and relkind='r';
+--
+-- Atenção ao LIKE: 'lnk[_]%' NÃO escapa o underscore no Postgres (colchete não
+-- é metacaractere aqui) e devolve zero linha em silêncio. O escape é 'lnk\_%'.
+
+-- ---------------------------------------------------------------------
+-- COMO TESTAR AS FUNÇÕES COM GATE
+-- ---------------------------------------------------------------------
+-- Função com gate esconde o próprio erro: rodando como superusuário o
+-- caminho do operador nem chega a executar. Foi assim que o bug do trigger
+-- (new.link_id numa tabela sem essa coluna) só apareceu no teste com role.
+--
+--   begin;
+--   set local role authenticated;
+--   set local request.jwt.claims = '{"email":"matheus@hookmidia.com"}';
+--   select public.lnk_painel_dominios();
+--   rollback;
+--
+-- Atenção: dentro desse bloco você TAMBÉM não consegue dar select nas
+-- tabelas lnk_* (é o comportamento correto). Pegue os ids do retorno da RPC.
+
+-- ---------------------------------------------------------------------
+-- ARMADILHAS QUE JÁ CUSTARAM TEMPO
+-- ---------------------------------------------------------------------
+-- 1. RAIZ REGISTRÁVEL, NÃO HOSTNAME.
+--    Blocklist (Google Safe Browsing, Spamhaus DBL) opera no domínio
+--    registrável: uma listagem em exemplo.com pega todos os subdomínios.
+--    Seis subdomínios da mesma raiz são UM alvo, não seis. Por isso
+--    lnk_dominios.raiz_registravel existe e o rodízio nunca sorteia dois
+--    hostnames da mesma raiz na mesma rodada.
+--    Corolário: l.hx-corp.com nasce com no_rodizio = false, porque a raiz
+--    hx-corp.com carrega o MX do e-mail da empresa, o n8n, o Metabase e o
+--    Evolution. Ele serve para link avulso, não para disparo em massa.
+--
+-- 2. CONTADOR NUNCA NA LINHA QUE O REDIRECT LÊ.
+--    O escopo original deste projeto propunha
+--      UPDATE redirects SET cliques = cliques+1 WHERE slug=$1 RETURNING url
+--    Isso serializa todos os cliques do mesmo link na mesma linha (hot row),
+--    enche a tabela de versões mortas e, pior, acopla venda a contador: se a
+--    escrita falha, o usuário não recebe redirect. Aqui o clique é
+--    append-only em lnk_cliques e o contador é derivado (lnk_cliques_dia).
+--    Errei nisso uma vez durante a construção: pus um UPDATE de contador
+--    dentro do lnk_edge_resolver e o Postgres recusou (função stable).
+--
+-- 3. NADA DE I/O ANTES DO 302.
+--    Lei da casa desde 09/08/2026, quando inverter a ordem cortou o redirect
+--    de 530ms para 449ms. No Worker: isolate -> KV -> Postgres, e o clique
+--    só em ctx.waitUntil().
+--
+-- 4. VIÉS DE CONSTRUÇÃO EM por_destino.
+--    Comparar o peso de AGORA com cliques que aconteceram sob o peso ANTIGO
+--    faz o painel acusar desvio que não existe. A janela de comparação começa
+--    em greatest(v_desde, lnk_destinos.updated_at), e a linha carrega
+--    peso_mudou_no_periodo + comparavel para a tela não cobrar aderência de
+--    um número que mudou de regra no meio.
+--
+-- 5. EXPOSIÇÃO SE MEDE EM MENSAGEM, NÃO EM CLIQUE.
+--    lnk_atribuicoes existe para isso. Medir exposição por clique tem viés de
+--    sobrevivência: domínio já bloqueado não gera clique, então pareceria
+--    "pouco exposto" justamente quando está morto.
+--
+-- 6. ROBÔ NÃO É CLIQUE.
+--    O crawler do WhatsApp busca a URL enquanto a pessoa ainda está digitando,
+--    antes de a mensagem ser enviada. A classificação é dado versionado
+--    (classificador_v) e reprocessável; a original nunca é sobrescrita em
+--    silêncio. Calibrado contra os 34 user agents reais de sortudao_wa_cliques
+--    (hx-links/scripts/testa-uas-reais.mjs, 35/35 corretos).
+--
+-- 7. SLUG DIFERENTE POR DOMÍNIO.
+--    Se dominio-a.com/x7k2 e dominio-b.com/x7k2 existissem, o caminho idêntico
+--    ligaria um domínio no outro. Por isso lnk_urls guarda um slug por
+--    (link, domínio), gerado aleatoriamente sem caracteres ambíguos.
+
+-- ---------------------------------------------------------------------
+-- CADASTRAR UM DOMÍNIO NOVO (o que o Matheus precisa fazer)
+-- ---------------------------------------------------------------------
+-- 1. Ter o domínio e apontar os nameservers para a nossa conta Cloudflare.
+-- 2. Painel: aba Links > Domínios > cadastrar.
+-- 3. O resto é automático: lnk_dominio_worker cria o Custom Domain do Worker,
+--    a Cloudflare cria o registro de DNS e emite o certificado, e o domínio
+--    vira 'ativo'. Todos os links do projeto ganham uma URL nele na hora.
+--
+-- Se ficar preso em 'pendente' com "a zona ainda não está na nossa conta",
+-- é porque o passo 1 não foi concluído.
+
+-- ---------------------------------------------------------------------
+-- DEPLOY DO WORKER
+-- ---------------------------------------------------------------------
+-- select public.lnk_deploy_worker($js$ ...conteúdo de hx-links/src/index.js... $js$);
+--
+-- Feito a partir do Postgres de propósito: o token da conta Cloudflare e os
+-- secrets do Worker são montados lá dentro, lidos do Vault, e nunca passam
+-- pelo terminal. A função devolve o SHA-256 do que subiu; comparar com
+-- `sha256sum src/index.js` no repo prova que o que está no ar é o que está
+-- versionado.
+
+-- ---------------------------------------------------------------------
+-- SMOKE TEST
+-- ---------------------------------------------------------------------
+-- curl -sI -H 'accept-language: pt-BR' -H 'sec-fetch-dest: document' \
+--      -H 'sec-fetch-mode: navigate' https://l.hx-corp.com/teste01
+--   espera: 302 + header x-hx + Location com as UTMs e o hxcid
+--
+-- Latência medida em 03/09/2026 (Desktop, Porto Alegre, 10 amostras):
+--   TTFB médio 110ms, contra 437-478ms do redirect do n8n em NYC1.
+--   Dentro do Worker: 0ms com cache de isolate, 3,5ms via KV.
+--   O que sobra é rede e TLS até a borda, não código nosso.

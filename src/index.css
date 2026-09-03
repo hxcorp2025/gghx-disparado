@@ -414,3 +414,16 @@ td.quando { text-align: right; white-space: nowrap; font-variant-numeric: tabula
   font-feature-settings: 'tnum', 'ss03';
   letter-spacing: -0.01em;
 }
+
+/* ---------- URL copiavel (encurtador) ----------
+   A URL curta e texto que o operador confere caractere a caractere antes de
+   colar num grupo de centenas de pessoas. Em fonte proporcional l/1/I viram a
+   mesma coisa, por isso mono; e quebra por caractere pra nao estourar no
+   celular. */
+.urlbox { display: flex; align-items: center; gap: 10px; background: var(--surface2);
+  border: 1px solid var(--line); border-radius: var(--r-card); padding: 10px 12px; }
+.urlbox code { flex: 1; min-width: 0; font-family: var(--mono); font-size: 13px;
+  color: var(--txt); word-break: break-all; user-select: all; }
+.urlbox .btn { flex-shrink: 0; }
+.urlbox.hero { padding: 14px 16px; border-color: var(--line2); }
+.urlbox.hero code { font-size: 16px; letter-spacing: -0.01em; }

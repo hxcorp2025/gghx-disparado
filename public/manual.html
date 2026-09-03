@@ -76,6 +76,7 @@
   <a href="#grupos">Grupos e os que são pulados sozinho</a>
   <a href="#copy">Copy com IA</a>
   <a href="#disparo">Novo disparo e Disparos</a>
+  <a href="#links">Links: o encurtador e o rodízio de domínio</a>
   <a href="#ferramentas">Ferramentas</a>
   <a href="#travou">Quando algo não sai: por onde olhar</a>
 </div>
@@ -220,6 +221,93 @@
 <p>
   Grupo <b>pulado</b> não é falha: é grupo sem lista de participantes lida, ou grupo queimado.
   Dá pra reenviar só nos pulados depois, pelo botão da tela de detalhe.
+</p>
+
+<h2 id="links">Links: o encurtador e o rodízio de domínio</h2>
+<p>
+  Aba nova. Ela existe por causa de uma coisa só: a análise de agosto mostrou que o que derrubava
+  as comunidades não era horário nem volume, era o <b>link sempre no mesmo domínio</b>. Agora o
+  link que você cola no grupo é nosso, e ele troca de endereço a cada disparo.
+</p>
+
+<h3>Na hora do disparo, é isto que você faz</h3>
+<ol>
+  <li>Abre a aba <b>Links</b>.</li>
+  <li>No quadro de cima, escolhe o link e clica em <b>Copiar</b>.</li>
+  <li>Cola na mensagem. Pronto.</li>
+</ol>
+<p>
+  Você <b>não escolhe</b> o domínio, e isso é de propósito: escolher é pensar, e pensar acaba
+  levando a gente sempre pros mesmos dois. O sistema entrega o que ficou mais tempo parado.
+  A URL já aparece na tela antes de você clicar, então dá pra conferir sem gastar.
+</p>
+
+<h3>Criar um link</h3>
+<p>
+  Botão <b>Novo link</b>. Você cola o endereço de destino, dá um nome pra achar depois, e preenche
+  as UTMs. Se o endereço que você colou já tinha UTM, eu puxo pros campos e aviso. O que não é UTM
+  fica intocado.
+</p>
+<p>
+  Acento, espaço e maiúscula somem enquanto você digita. É de propósito: o Google conta
+  "Black Friday" e "black-friday" como duas campanhas diferentes, e aí a soma nunca fecha.
+</p>
+<table>
+  <tr><th>Campo</th><th>Pra que serve</th></tr>
+  <tr><td>utm_source</td><td>De onde vem. No nosso caso quase sempre <b>whatsapp</b>.</td></tr>
+  <tr><td>utm_medium</td><td>Tipo de canal. <b>grupo</b>, quando é disparo em comunidade.</td></tr>
+  <tr><td>utm_campaign</td><td>Qual campanha. Ex.: <b>vip-setembro</b>.</td></tr>
+  <tr><td>utm_content</td><td><b>O braço do teste.</b> É este campo que separa A de B na hora de
+      medir quanto cada versão vendeu. Link sem ele aparece marcado como "sem braço" e a venda
+      dele não tem como ser separada depois.</td></tr>
+</table>
+
+<h3>Mais de um destino no mesmo link</h3>
+<p>
+  Dá pra mandar o mesmo link pra dois ou mais lugares e escolher quanto vai pra cada um. O peso é
+  relativo: se você põe 3 e 1, o primeiro leva 75% e o segundo 25%. Não precisa somar 100.
+  Peso 0 desliga um destino sem apagar, então o que já foi medido continua no relatório.
+</p>
+<p>
+  Uma coisa que assusta e não é defeito: sorteio tem variação. Com metade pra cada lado e 100
+  cliques, ver 54 e 46 é normal. Na aba <b>Cliques</b> eu mostro a margem esperada ao lado do
+  número, e ela vai apertando conforme o volume cresce.
+</p>
+
+<h3>Domínios</h3>
+<p>
+  Cada domínio novo divide a exposição de todos os outros. Com dois, cada um aparece em metade dos
+  disparos; com seis, em um sexto. Por isso a tela avisa quando estão poucos.
+</p>
+<p>
+  O que conta é o <b>domínio raiz</b>, não o endereço. Quem bloqueia link trabalha na raiz: se
+  <code>exemplo.com</code> for marcado, todos os <code>l.exemplo.com</code>,
+  <code>promo.exemplo.com</code> e afins caem junto. Seis endereços do mesmo domínio
+  seriam um alvo só. Por isso o rodízio conta raízes diferentes.
+</p>
+<p>
+  Domínio novo é o Matheus quem traz. Depois de cadastrado, o resto é automático e leva menos de
+  dois minutos.
+</p>
+
+<h3>A tabela que você precisa olhar toda semana</h3>
+<p>
+  Em <b>Cliques</b>, o quadro <b>Por domínio</b> é o alarme de incêndio. Domínio que foi entregue
+  muitas vezes nos disparos e mesmo assim tem clique perto de zero quase sempre já está bloqueado
+  dentro do WhatsApp, mesmo que nenhum grupo tenha caído ainda. Marca como suspeito na aba
+  Domínios: sai do rodízio na hora, e os links antigos continuam abrindo.
+</p>
+
+<h3>Por que "acessos" e "cliques" são números diferentes</h3>
+<p>
+  Quando você cola um link no grupo, o WhatsApp abre ele sozinho pra montar aquela prévia com foto
+  e título, <b>antes de qualquer pessoa tocar na tela</b>. Num disparo pra 101 grupos, só isso já
+  gera mais de cem acessos. Se a gente somasse tudo, o painel mostraria clique que nunca existiu.
+</p>
+<p>
+  Por isso a tela mostra três números lado a lado: <b>acessos</b> (tudo), <b>robôs</b> (a prévia) e
+  <b>cliques de gente</b>. O terceiro é o que vale pra decidir. E "pessoas" é estimativa mesmo, sem
+  login não dá pra saber ao certo: serve pra ordem de grandeza, não pra contar lead.
 </p>
 
 <h2 id="ferramentas">Ferramentas</h2>
