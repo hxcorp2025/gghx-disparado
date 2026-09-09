@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Send, Users, AtSign, AlertTriangle, Check, Pause, Play, XCircle, Zap, Rocket, Pencil, RefreshCw,
+  Send, Users, AtSign, AlertTriangle, Check, Pause, Play, XCircle, Zap, Rocket, Pencil, RefreshCw, Archive,
 } from 'lucide-react'
 import type { CopyVariacao } from '../lib/copyDb'
 import {
@@ -49,6 +49,18 @@ function horasDesde(iso: string) {
   return (Date.now() - new Date(iso).getTime()) / 3_600_000
 }
 
+// cabecalho do pedido: "hoje 11:59" / "ontem 20:10" / "02/09 19:18"
+function quandoPedido(iso: string) {
+  const d = new Date(iso)
+  const hoje = new Date()
+  const ontem = new Date(hoje)
+  ontem.setDate(hoje.getDate() - 1)
+  const hhmm = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  if (d.toDateString() === hoje.toDateString()) return `hoje ${hhmm}`
+  if (d.toDateString() === ontem.toDateString()) return `ontem ${hhmm}`
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${hhmm}`
+}
+
 function rotuloDesde(iso: string) {
   const h = horasDesde(iso)
   if (h < 1) return `${Math.max(1, Math.round(h * 60))}min`
@@ -85,6 +97,10 @@ export function DisparoSendflow({
   // ajuste de detalhe sem cancelar a copy (PRD_copyia_editar_variacao_2026-08-31)
   const [editandoVar, setEditandoVar] = useState<CopyVariacao | null>(null)
   const [sincronizando, setSincronizando] = useState(false)
+  // PRD 09/09 (Peterson): so o ultimo pedido aberto; o resto mora no "Arquivo de copy"
+  const [arquivoAberto, setArquivoAberto] = useState(false)
+  // campanha de OUTRO projeto (ex.: JA) nunca aparece por padrao; revelar e ato consciente
+  const [mostrarFora, setMostrarFora] = useState(false)
 
   // Peterson mexeu nos grupos direto no SendFlow (31/08): enfileira a coleta AGORA
   // (a diária é só 6:05) e re-busca os grupos enquanto o worker de 1 min processa.
@@ -98,7 +114,7 @@ export function DisparoSendflow({
         : 'Atualização pedida ao SendFlow, os números chegam em ~1 min')
       ;[30_000, 60_000, 90_000].forEach((ms, i, arr) =>
         setTimeout(() => {
-          sendflowGruposVip().then(setGrupos).catch(() => {})
+          sendflowGruposVip(null, true).then(setGrupos).catch(() => {})
           if (i === arr.length - 1) setSincronizando(false)
         }, ms),
       )
@@ -116,7 +132,7 @@ export function DisparoSendflow({
   }, [])
 
   useEffect(() => {
-    sendflowGruposVip()
+    sendflowGruposVip(null, true)
       .then(setGrupos)
       .catch((e) => setErroGrupos(e instanceof Error ? e.message : 'Não consegui carregar os grupos.'))
     carregarCooldown()
@@ -151,11 +167,18 @@ export function DisparoSendflow({
     }
   }, [vivoId, st])
 
+  // a mesa so enxerga as releases do projeto; as de fora entram apenas com o link explicito
+  const gruposMesa = useMemo(
+    () => grupos.filter((g) => mostrarFora || !g.fora_da_mesa),
+    [grupos, mostrarFora],
+  )
+  const nFora = grupos.filter((g) => g.fora_da_mesa).length
+  const releasesFora = new Set(grupos.filter((g) => g.fora_da_mesa).map((g) => g.release_id)).size
   const releases = useMemo(() => {
-    const m = new Map<string, string>()
-    grupos.forEach((g) => m.set(g.release_id, g.release_nome))
-    return [...m.entries()].map(([id, nome]) => ({ id, nome }))
-  }, [grupos])
+    const m = new Map<string, { nome: string; fora: boolean }>()
+    gruposMesa.forEach((g) => m.set(g.release_id, { nome: g.release_nome, fora: g.fora_da_mesa }))
+    return [...m.entries()].map(([id, r]) => ({ id, nome: r.nome, fora: r.fora }))
+  }, [gruposMesa])
   const releaseNome = useCallback(
     (id: string) => releases.find((r) => r.id === id)?.nome ?? id.slice(0, 8),
     [releases],
@@ -183,7 +206,11 @@ export function DisparoSendflow({
   }, [aprovadas])
 
   const selecionadas = aprovadas.filter((v) => sel.has(v.id))
-  const gruposSel = grupos.filter((g) => selGids.has(g.gid))
+  const gruposSel = gruposMesa.filter((g) => selGids.has(g.gid))
+  const ultimoPedido = porPedido[0]
+  const arquivo = porPedido.slice(1)
+  const nArquivo = arquivo.reduce((s, p) => s + p.vs.length, 0)
+  const selNoArquivo = selecionadas.filter((v) => v.fila_id !== ultimoPedido?.fid).length
   const pessoas = gruposSel.reduce((s, g) => s + (g.participantes || 0), 0)
   const erroSequencia = sequenciaValida(blocos)
   const nMidias = blocos.filter((b) => b.tipo === 'midia').length
@@ -215,7 +242,7 @@ export function DisparoSendflow({
   // Cooldown NÃO exclui ninguém (Peterson 31/08: a operação empilha disparos no mesmo
   // dia — excluir do marcar em bloco travava o fluxo). O selo é só informação.
   function toggleRelease(rid: string | null) {
-    const alvo = rid === null ? grupos : grupos.filter((g) => g.release_id === rid)
+    const alvo = rid === null ? gruposMesa : gruposMesa.filter((g) => g.release_id === rid)
     const todosMarcados = alvo.length > 0 && alvo.every((g) => selGids.has(g.gid))
     setSelGids((s) => {
       const n = new Set(s)
@@ -465,9 +492,11 @@ export function DisparoSendflow({
             (round-robin) pra medir qual segura mais o grupo. Clica pra escolher, a última clicada
             aparece no celular ao lado.
           </p>
-          {porPedido.map(({ fid, vs }) => (
+          {(arquivoAberto ? porPedido : porPedido.slice(0, 1)).map(({ fid, vs }) => (
             <div key={fid} style={{ marginBottom: 10 }}>
-              <span className="mut" style={{ fontSize: 11.5 }}>Pedido #{fid}</span>
+              <span className="mut" style={{ fontSize: 11.5 }}>
+                Pedido #{fid} · {quandoPedido(vs[0].criado_em)}{fid === ultimoPedido?.fid ? ' · o mais recente' : ''}
+              </span>
               <div className="vgrid" style={{ marginTop: 5 }}>
                 {vs.map((v) => (
                   <div key={v.id} role="button" tabIndex={0} aria-pressed={sel.has(v.id)}
@@ -491,6 +520,14 @@ export function DisparoSendflow({
               </div>
             </div>
           ))}
+          {arquivo.length > 0 && (
+            <button type="button" className="btn sm ghost" onClick={() => setArquivoAberto((v) => !v)}>
+              <Archive size={13} />
+              {arquivoAberto
+                ? 'Fechar o arquivo'
+                : `Arquivo de copy (${arquivo.length} pedidos · ${nArquivo} copies)${selNoArquivo > 0 ? ` · ${selNoArquivo} escolhida${selNoArquivo > 1 ? 's' : ''} lá dentro` : ''}`}
+            </button>
+          )}
         </div>
 
         {/* 2 · Sequência (mídia) */}
@@ -519,11 +556,13 @@ export function DisparoSendflow({
           </div>
           <div className="row" style={{ gap: 8, marginBottom: 10 }}>
             <button type="button" className="btn sm ghost" onClick={() => toggleRelease(null)}>
-              <Users size={13} /> Todas VIP ({grupos.length})
+              <Users size={13} /> Todas VIP ({gruposMesa.length})
             </button>
             {releases.map((rl) => (
-              <button key={rl.id} type="button" className="btn sm ghost" onClick={() => toggleRelease(rl.id)}>
-                {rl.nome} ({grupos.filter((g) => g.release_id === rl.id).length})
+              <button key={rl.id} type="button" className="btn sm ghost" onClick={() => toggleRelease(rl.id)}
+                title={rl.fora ? 'Campanha de OUTRO projeto: confere antes de marcar' : undefined}
+                style={rl.fora ? { color: 'var(--amber)' } : undefined}>
+                {rl.fora ? '⚠ ' : ''}{rl.nome} ({gruposMesa.filter((g) => g.release_id === rl.id).length})
               </button>
             ))}
             {selGids.size > 0 && (
@@ -539,10 +578,19 @@ export function DisparoSendflow({
             O selo mostra há quanto tempo o grupo recebeu o último disparo (âmbar = menos de{' '}
             {COOLDOWN_H}h). É só informação, marcar em bloco marca todo mundo.
           </p>
+          {nFora > 0 && (
+            <button type="button" className="btn sm ghost" style={{ marginBottom: 8 }}
+              onClick={() => setMostrarFora((v) => !v)}
+              title="Releases que nao sao do Rox VIP (campanhas do Joao, Rox Premios) ficam escondidas por padrao">
+              {mostrarFora
+                ? 'Esconder outras campanhas'
+                : `Outras campanhas (${releasesFora} · ${nFora} grupos), mostrar`}
+            </button>
+          )}
           {erroGrupos && <p className="st-falha" style={{ fontSize: 12 }}>{erroGrupos}</p>}
-          {grupos.length > 0 && (
+          {gruposMesa.length > 0 && (
             <div className="galvo">
-              {grupos.map((g) => {
+              {gruposMesa.map((g) => {
                 const u = ultimoEnvio.get(g.gid)
                 const cool = emCooldown(g.gid)
                 return (

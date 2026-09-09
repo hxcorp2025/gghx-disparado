@@ -15,6 +15,7 @@ export type SendflowGrupoVip = {
   numero_grupo: number | null
   release_id: string
   release_nome: string
+  fora_da_mesa: boolean // release de OUTRO projeto (ex.: JA) ou fora da mesa (Rox Prêmios)
 }
 
 async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
@@ -25,8 +26,10 @@ async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
 
 // F1 - lista os grupos VIP vivos (releases Comunidades VIP 01/02).
 // releaseId null = todas as releases VIP; ou passa um release_id especifico.
-export const sendflowGruposVip = (releaseId: string | null = null) =>
-  rpc<SendflowGrupoVip[]>('sendflow_grupos_vip', { p_release_id: releaseId })
+// incluirFora=true traz tambem as releases fora da mesa (marcadas fora_da_mesa). A UI
+// esconde por padrao e so revela no link "Outras campanhas" (PRD 09/09, "nao fazer merda").
+export const sendflowGruposVip = (releaseId: string | null = null, incluirFora = false) =>
+  rpc<SendflowGrupoVip[]>('sendflow_grupos_vip', { p_release_id: releaseId, p_incluir_fora: incluirFora })
 
 export type SendflowDisparoResultado = {
   ok: boolean
