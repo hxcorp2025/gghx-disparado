@@ -167,18 +167,33 @@ export function DisparoSendflow({
     }
   }, [vivoId, st])
 
-  // a mesa so enxerga as releases do projeto; as de fora entram apenas com o link explicito
-  const gruposMesa = useMemo(
-    () => grupos.filter((g) => mostrarFora || !g.fora_da_mesa),
-    [grupos, mostrarFora],
+  // "mesa" = o que "Todas VIP" marca (SO o projeto); "visiveis" = o que a lista mostra.
+  // Revelar outras campanhas mostra as linhas e as pills ambar, mas nunca muda o que o
+  // botao de sempre marca em bloco (revisao 09/09: Todas VIP arrastava JA + Rox Premios).
+  const gruposMesa = useMemo(() => grupos.filter((g) => !g.fora_da_mesa), [grupos])
+  const gruposVisiveis = useMemo(
+    () => (mostrarFora ? grupos : gruposMesa),
+    [grupos, gruposMesa, mostrarFora],
   )
-  const nFora = grupos.filter((g) => g.fora_da_mesa).length
+  const nFora = grupos.length - gruposMesa.length
   const releasesFora = new Set(grupos.filter((g) => g.fora_da_mesa).map((g) => g.release_id)).size
   const releases = useMemo(() => {
     const m = new Map<string, { nome: string; fora: boolean }>()
-    gruposMesa.forEach((g) => m.set(g.release_id, { nome: g.release_nome, fora: g.fora_da_mesa }))
-    return [...m.entries()].map(([id, r]) => ({ id, nome: r.nome, fora: r.fora }))
-  }, [gruposMesa])
+    gruposVisiveis.forEach((g) => m.set(g.release_id, { nome: g.release_nome, fora: g.fora_da_mesa }))
+    // as de fora vao pro fim da fileira: o aviso ambar se destaca
+    return [...m.entries()]
+      .map(([id, r]) => ({ id, nome: r.nome, fora: r.fora }))
+      .sort((a, b) => Number(a.fora) - Number(b.fora))
+  }, [gruposVisiveis])
+
+  // esconder de novo poda a selecao fantasma (grupo de fora marcado e depois escondido)
+  function alternarFora() {
+    if (mostrarFora) {
+      const foraIds = new Set(grupos.filter((g) => g.fora_da_mesa).map((g) => g.gid))
+      setSelGids((s) => new Set([...s].filter((gid) => !foraIds.has(gid))))
+    }
+    setMostrarFora((v) => !v)
+  }
   const releaseNome = useCallback(
     (id: string) => releases.find((r) => r.id === id)?.nome ?? id.slice(0, 8),
     [releases],
@@ -206,7 +221,8 @@ export function DisparoSendflow({
   }, [aprovadas])
 
   const selecionadas = aprovadas.filter((v) => sel.has(v.id))
-  const gruposSel = gruposMesa.filter((g) => selGids.has(g.gid))
+  const gruposSel = gruposVisiveis.filter((g) => selGids.has(g.gid))
+  const gruposSelFora = gruposSel.filter((g) => g.fora_da_mesa)
   const ultimoPedido = porPedido[0]
   const arquivo = porPedido.slice(1)
   const nArquivo = arquivo.reduce((s, p) => s + p.vs.length, 0)
@@ -242,7 +258,7 @@ export function DisparoSendflow({
   // Cooldown NÃO exclui ninguém (Peterson 31/08: a operação empilha disparos no mesmo
   // dia — excluir do marcar em bloco travava o fluxo). O selo é só informação.
   function toggleRelease(rid: string | null) {
-    const alvo = rid === null ? gruposMesa : gruposMesa.filter((g) => g.release_id === rid)
+    const alvo = rid === null ? gruposMesa : gruposVisiveis.filter((g) => g.release_id === rid)
     const todosMarcados = alvo.length > 0 && alvo.every((g) => selGids.has(g.gid))
     setSelGids((s) => {
       const n = new Set(s)
@@ -562,7 +578,7 @@ export function DisparoSendflow({
               <button key={rl.id} type="button" className="btn sm ghost" onClick={() => toggleRelease(rl.id)}
                 title={rl.fora ? 'Campanha de OUTRO projeto: confere antes de marcar' : undefined}
                 style={rl.fora ? { color: 'var(--amber)' } : undefined}>
-                {rl.fora ? '⚠ ' : ''}{rl.nome} ({gruposMesa.filter((g) => g.release_id === rl.id).length})
+                {rl.fora ? '⚠ ' : ''}{rl.nome} ({gruposVisiveis.filter((g) => g.release_id === rl.id).length})
               </button>
             ))}
             {selGids.size > 0 && (
@@ -580,17 +596,17 @@ export function DisparoSendflow({
           </p>
           {nFora > 0 && (
             <button type="button" className="btn sm ghost" style={{ marginBottom: 8 }}
-              onClick={() => setMostrarFora((v) => !v)}
-              title="Releases que nao sao do Rox VIP (campanhas do Joao, Rox Premios) ficam escondidas por padrao">
+              onClick={alternarFora}
+              title="Campanhas de outro projeto ficam escondidas por padrão">
               {mostrarFora
                 ? 'Esconder outras campanhas'
-                : `Outras campanhas (${releasesFora} · ${nFora} grupos), mostrar`}
+                : `Mostrar outras campanhas (${releasesFora} · ${nFora} grupos)`}
             </button>
           )}
           {erroGrupos && <p className="st-falha" style={{ fontSize: 12 }}>{erroGrupos}</p>}
-          {gruposMesa.length > 0 && (
+          {gruposVisiveis.length > 0 && (
             <div className="galvo">
-              {gruposMesa.map((g) => {
+              {gruposVisiveis.map((g) => {
                 const u = ultimoEnvio.get(g.gid)
                 const cool = emCooldown(g.gid)
                 return (
@@ -703,6 +719,12 @@ export function DisparoSendflow({
               Cada variação pega ~{porVariacao} grupos, {RITMOS[ritmo].sub} entre mensagens, uma
               variação por número de cada vez. A partida é em {PARTIDA_S}s e dá pra cancelar até lá.
             </p>
+            {gruposSelFora.length > 0 && (
+              <p style={{ fontSize: 12.5, color: 'var(--amber)', margin: '8px 0 0' }}>
+                ⚠ {gruposSelFora.length} dos grupos marcados são de OUTRA campanha (
+                {[...new Set(gruposSelFora.map((g) => g.release_nome))].join(', ')}). Confere se é isso mesmo.
+              </p>
+            )}
             {(() => {
               const nRecentes = gruposSel.filter((g) => emCooldown(g.gid)).length
               return nRecentes > 0 ? (
