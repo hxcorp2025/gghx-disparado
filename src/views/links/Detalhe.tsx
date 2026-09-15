@@ -267,7 +267,9 @@ export function Detalhe({ id, doms, onVoltar }: Props) {
                   <div className="val">{n(k.cliques)}</div>
                   <div className="sub">
                     {variacao == null
-                      ? (k.cliques_periodo_anterior ? '·' : 'sem período anterior fechado pra comparar')
+                      ? (k.periodo_parcial && k.cliques_periodo_fechado == null
+                          ? 'sem dia completo no período pra comparar'
+                          : 'período anterior sem clique: sem base pra comparar')
                       : <><span className={variacao >= 0 ? 'delta-up' : 'delta-down'}>{variacao >= 0 ? '+' : ''}{pct(variacao)}</span> vs anterior, {k.base_variacao ?? 'dias completos'} ({n(k.cliques_periodo_fechado)} × {n(k.cliques_periodo_anterior)})</>}
                   </div>
                 </div>
