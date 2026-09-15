@@ -265,7 +265,7 @@ begin
       'aparelho', 'Aparelho, sistema e navegador vêm do user agent. O Chrome moderno esconde a versão real: "Android 10" e "Windows" podem ser qualquer versão. iOS e navegadores in-app (Instagram, Facebook, WhatsApp) dizem a verdade.',
       'referer', 'Sem referer é normal: Instagram, Facebook e WhatsApp in-app quase nunca informam de onde a pessoa veio. Não é erro de rastreio.',
       'destinos', 'Peso real × configurado compara só os cliques depois da última mudança de peso (janela truncada). Diferença dentro da margem não é desvio.',
-      'variacao', 'Variação compara com o período imediatamente anterior, de mesma duração.'));
+      'variacao', 'Variação compara só dias completos (o dia em curso fica fora dos dois lados) com o período imediatamente anterior, de mesma duração.'));
 end $$;
 revoke execute on function public.lnk_painel_link(uuid, timestamptz, timestamptz, text) from public, anon;
 grant execute on function public.lnk_painel_link(uuid, timestamptz, timestamptz, text) to authenticated, service_role;

@@ -365,6 +365,7 @@ export type NovoDestino = { id?: string; url: string; rotulo?: string; peso: num
 export type NovoParam = { chave: string; valor: string; rotulo_destino?: string; destino_id?: string | null; ordem?: number }
 
 export type ExtrasCriar = {
+  merge_query?: 'append' | 'ignorar' | 'whitelist'
   slug?: string | null
   dominio?: string | null
   tags?: string[]
@@ -383,7 +384,7 @@ export const linksCriar = async (
     link?: LinkSnapshot
   }>>('lnk_criar', {
     p_projeto: projeto, p_nome: nome, p_destinos: destinos,
-    p_params: params, p_divisao: divisao, p_merge_query: 'append',
+    p_params: params, p_divisao: divisao, p_merge_query: extras.merge_query ?? 'append',
     p_slug: extras.slug?.trim() || null, p_dominio: extras.dominio || null,
     p_tags: extras.tags ?? [], p_observacao: extras.observacao?.trim() || null,
     p_expira_em: extras.expira_em || null, p_preview: extras.preview ?? null,

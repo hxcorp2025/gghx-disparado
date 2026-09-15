@@ -453,7 +453,12 @@ td.quando { text-align: right; white-space: nowrap; font-variant-numeric: tabula
 .lk-num { display: flex; flex-direction: column; align-items: flex-end; min-width: 52px; }
 .lk-num b { font-family: var(--display); font-size: 19px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; }
 .lk-num span { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); margin-top: 4px; white-space: nowrap; }
-.lk-acoes { display: flex; gap: 6px; }
+.lk-acoes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+/* bloco do rodizio aberto na linha: ocupa a linha inteira */
+.lk-rodizio { flex: 1 1 100%; min-width: 0; }
+.lk-rodizio .urlbox { margin: 0; flex-wrap: wrap; }
+/* input do fallback de copia (execCommand): precisa existir e ser focavel, nao pode ser display:none */
+.lk-campo-copia { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .spark { flex-shrink: 0; }
 .spark-line { stroke: var(--serie-1); stroke-width: 1.5; stroke-linejoin: round; }
 .spark-area { fill: var(--serie-1); opacity: 0.12; }
@@ -497,4 +502,6 @@ textarea { width: 100%; min-height: 70px; resize: vertical; font: inherit; }
   .lk-acoes { justify-content: flex-end; }
   .dimgrid { grid-template-columns: 1fr; }
   .bar { grid-template-columns: minmax(0, 1fr) minmax(40px, 1fr) auto auto; }
+  /* alvo de toque: chip de filtro e chip de URL nao podem ter 24 px no dedo */
+  .chip, button.mchip { min-height: 36px; }
 }

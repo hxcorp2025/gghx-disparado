@@ -174,7 +174,7 @@ export function Dominios({ doms, carregando, recarregar }: Props) {
               {d.nameservers.map((ns) => (
                 <div className="urlbox" key={ns} style={{ marginBottom: 6 }}>
                   <code>{ns}</code>
-                  <button className="btn ghost sm" onClick={async () => {
+                  <button className="btn ghost sm" aria-label={`Copiar ${ns}`} onClick={async () => {
                     const ok = await copiarTexto(ns)
                     toast(ok ? 'Copiado' : 'Toque e segure no endereço pra copiar', !ok)
                   }}><Copy size={13} /></button>

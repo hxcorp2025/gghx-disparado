@@ -17,6 +17,8 @@ type Props = {
   doms: LinkDominiosPainel | null
   onFechar: () => void
   onSalvo: (link: LinkSnapshot | null) => void
+  /** o slug mudou mas o formulario continua aberto: o pai so recarrega */
+  onMudouUrls?: () => void
 }
 
 // ISO (UTC) -> valor de <input type="datetime-local"> em horario de Brasilia
@@ -38,7 +40,7 @@ const iguais = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(
 // o banco valida pra VALER (e devolve o erro em portugues). Nada aqui
 // e destrutivo: destino que sai da lista e desligado, nunca apagado.
 // =====================================================================
-export function Editor({ modo, link, doms, onFechar, onSalvo }: Props) {
+export function Editor({ modo, link, doms, onFechar, onSalvo, onMudouUrls }: Props) {
   const editando = modo === 'editar' && !!link
 
   // ---------- basico ----------
@@ -144,17 +146,32 @@ export function Editor({ modo, link, doms, onFechar, onSalvo }: Props) {
     if (problemas.length) { setErro(problemas[0].msg); return }
     if (!nome.trim()) { setErro('O link precisa de um nome pra você achar depois.'); return }
     if (!editando && slugLimpo && slugProblema) { setErro(slugProblema); return }
+    // o banco tambem recusa, mas na criacao a marcacao de anuncio so entra num
+    // segundo passo; sem esta trava o link nasceria com card proprio e anunciado
+    if (anuncio && preview.modo === 'card_proprio') {
+      setErro('Link de anúncio não pode usar card próprio: o robô da Meta veria uma coisa e a pessoa outra (cloaking). Troca a prévia pra "mostra a prévia do destino".')
+      return
+    }
     setOcupado(true)
     setErro(null)
     try {
       if (!editando) {
         const r = await linksCriar(nome.trim(), todosCriar, montarParams(), divisao, 'hx-geral', {
+          merge_query: mergeQuery,
           slug: slugLimpo || null, dominio: slugLimpo ? dominioSlug : null,
           tags, observacao: observacao || null, expira_em: localParaIso(expira),
           preview: previewParaEnviar(),
         })
+        let criadoLink = r.link ?? null
+        // dois campos que a criacao nao aceita entram logo em seguida pelo editar
+        if (criadoLink && (destinoExpirado || anuncio)) {
+          const r2 = await linksEditar(criadoLink.id, { destino_expirado: destinoExpirado || null, is_destino_de_anuncio: anuncio })
+          if (!r2.ok) toast(`Link criado, mas não consegui salvar o destino de expirado ou a marcação de anúncio: ${r2.erro ?? ''} Abre Editar pra ajustar.`, true)
+          else if (r2.link) criadoLink = r2.link
+        }
         toast(`Link criado${r.urls_criadas ? ` em ${r.urls_criadas} domínio(s)` : ''}.`)
-        setCriado(r.link ?? null)
+        if (criadoLink) setCriado(criadoLink)
+        else onSalvo(null)
         return
       }
 
@@ -175,7 +192,10 @@ export function Editor({ modo, link, doms, onFechar, onSalvo }: Props) {
       if (!iguais(destinos, d0)) patch.destinos = destinos.map((d) => ({ ...d, rotulo: d.rotulo || undefined }))
       const params = montarParams()
       const p0 = paramsIniciais.map((p, i) => ({ chave: p.chave, valor: p.valor, ...(p.destino_id ? { destino_id: p.destino_id } : {}), ordem: p.destino_id ? 100 + i : i }))
-      if (!iguais(params.map((p) => [p.chave, p.valor, p.destino_id ?? null]), p0.map((p) => [p.chave, p.valor, p.destino_id ?? null]))) patch.params = params
+      // por conjunto, nao por posicao: a ordem do banco pode divergir da do
+      // formulario sem nada ter mudado, e mandar params a toa apaga e reinsere
+      const chaveP = (p: { chave: string; valor: string; destino_id?: string | null }) => `${p.chave}|${p.valor}|${p.destino_id ?? ''}`
+      if (!iguais([...params.map(chaveP)].sort(), [...p0.map(chaveP)].sort())) patch.params = params
 
       if (!Object.keys(patch).length) { toast('Nada mudou.'); onFechar(); return }
       const r = await linksEditar(link!.id, patch)
@@ -208,7 +228,10 @@ export function Editor({ modo, link, doms, onFechar, onSalvo }: Props) {
       }
       setConfirmar(null)
       toast(r.sem_mudanca ? 'Já era esse slug.' : `Agora responde em ${r.url}. ${r.propagacao ?? ''}`)
-      if (r.link) { setUrlsAgora(r.link.urls); onSalvo(r.link) }
+      // NAO fecha o editor: quem mexeu em nome, UTMs e tags antes de renomear
+      // perderia tudo. So atualiza os enderecos e avisa o pai pra recarregar.
+      if (r.link) setUrlsAgora(r.link.urls)
+      onMudouUrls?.()
       setNovoSlug({ ...novoSlug, [hostname]: '' })
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Falhou')
@@ -310,7 +333,11 @@ export function Editor({ modo, link, doms, onFechar, onSalvo }: Props) {
         </div>
       )}
       {(editando ? destinos : extras).map((d, i) => {
-        const pd = problemas.find((x) => x.onde === `destino-${editando ? i - 1 : i}`)
+        // no editar, `problemas` foi calculado sobre os destinos LIGADOS (ativos.slice(1));
+        // o indice da linha na lista completa nao e o mesmo quando ha destino desligado
+        const ligados = editando ? destinos.filter((x) => x.ativo !== false) : extras
+        const idxProblema = editando ? ligados.indexOf(d) - 1 : i
+        const pd = idxProblema >= 0 ? problemas.find((x) => x.onde === `destino-${idxProblema}`) : undefined
         const lista = editando ? destinos : extras
         const setLista = editando ? setDestinos : setExtras
         const desligado = d.ativo === false
@@ -332,7 +359,7 @@ export function Editor({ modo, link, doms, onFechar, onSalvo }: Props) {
                   {desligado ? 'ligar' : 'desligar'}
                 </button>
               ) : (
-                <button className="btn ghost sm" onClick={() => setLista(lista.filter((_, j) => j !== i))}>
+                <button className="btn ghost sm" aria-label="Tirar destino" onClick={() => setLista(lista.filter((_, j) => j !== i))}>
                   <X size={13} />
                 </button>
               )}
@@ -383,7 +410,7 @@ export function Editor({ modo, link, doms, onFechar, onSalvo }: Props) {
                 onChange={(e) => setCustom(custom.map((x, j) => j === i ? { ...x, chave: normalizaChave(e.target.value) } : x))} />
               <input value={c.valor} placeholder="valor"
                 onChange={(e) => setCustom(custom.map((x, j) => j === i ? { ...x, valor: normalizaValor(e.target.value) } : x))} />
-              <button className="btn ghost sm" onClick={() => setCustom(custom.filter((_, j) => j !== i))}>
+              <button className="btn ghost sm" aria-label="Tirar parâmetro" onClick={() => setCustom(custom.filter((_, j) => j !== i))}>
                 <X size={13} />
               </button>
             </div>

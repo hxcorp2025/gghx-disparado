@@ -145,6 +145,7 @@ export function QrBox({ url, nome }: { url: string; nome: string }) {
       {png ? <img src={png} alt={`QR do link ${url}`} width={160} height={160} /> : <div className="skel" style={{ width: 160, height: 160 }} />}
       <div className="qr-acoes">
         <span className="mut" style={{ fontSize: 12 }}>Aponta a câmera: abre {url.replace(/^https?:\/\//, '')}</span>
+        <span className="mut" style={{ fontSize: 11.5 }}>Não baixou? Toque e segure na imagem pra salvar.</span>
         <div className="row" style={{ gap: 6 }}>
           <button className="btn ghost sm" onClick={() => baixar('png')} disabled={!png}><Download size={13} />PNG</button>
           <button className="btn ghost sm" onClick={() => baixar('svg')}><Download size={13} />SVG</button>

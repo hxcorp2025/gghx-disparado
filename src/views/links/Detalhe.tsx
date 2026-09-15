@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Pencil, Pause, Play, Snowflake, RefreshCw, Download, Lock, ExternalLink } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceArea,
@@ -7,7 +7,7 @@ import { linksDetalhe, linksEstado, type LinkDetalhe, type LinkDominiosPainel, t
 import { SkeletonCards } from '../../components/Skeleton'
 import { downloadCSV } from '../../lib/csv'
 import { toast } from '../../lib/toast'
-import { n, pct, quando, dataBR, Ajuda, ESTADO_LINK, UrlCurta, Barras, copiarComToast } from './comum'
+import { n, pct, quando, dataBR, Ajuda, ESTADO_LINK, BADGE, UrlCurta, Barras, copiarComToast } from './comum'
 import { Editor } from './Editor'
 
 type Props = { id: string; doms: LinkDominiosPainel | null; onVoltar: () => void }
@@ -61,6 +61,11 @@ export function Detalhe({ id, doms, onVoltar }: Props) {
   const [editando, setEditando] = useState(false)
   const [ocupado, setOcupado] = useState(false)
   const [confirmar, setConfirmar] = useState<{ msg: string; acao: () => Promise<void> } | null>(null)
+  // recusa dura do banco (ex.: pausar link protegido sem destino de expirado):
+  // fica num card, nao num toast que some em segundos
+  const [bloqueio, setBloqueio] = useState<string | null>(null)
+  // guarda de corrida: trocar de periodo rapido nunca pinta a serie do periodo errado
+  const seq = useRef(0)
 
   const janela = useMemo(() => {
     switch (periodo) {
@@ -72,10 +77,14 @@ export function Detalhe({ id, doms, onVoltar }: Props) {
   }, [periodo, porHora])
 
   const carregar = useCallback(async () => {
+    const meu = ++seq.current
     try {
-      setDet(await linksDetalhe(id, janela.de, null, janela.grao))
+      const d = await linksDetalhe(id, janela.de, null, janela.grao)
+      if (meu !== seq.current) return
+      setDet(d)
       setErro(null)
     } catch (e) {
+      if (meu !== seq.current) return
       setErro(e instanceof Error ? e.message : 'Falhou')
     }
   }, [id, janela])
@@ -89,10 +98,12 @@ export function Detalhe({ id, doms, onVoltar }: Props) {
       const r = await linksEstado(id, estado, forcar)
       if (!r.ok) {
         if (r.precisa_forcar) { setConfirmar({ msg: r.erro ?? '', acao: () => mudarEstado(estado, true) }); return }
-        toast(r.erro ?? 'Não consegui.', true)
+        setConfirmar(null)
+        setBloqueio(r.erro ?? 'Não consegui.')
         return
       }
       setConfirmar(null)
+      setBloqueio(null)
       toast((estado === 'pausado' ? 'Pausado. ' : estado === 'congelado' ? 'Congelado. ' : 'No ar. ') + (r.propagacao ?? ''))
       await carregar()
     } catch (e) {
@@ -158,7 +169,7 @@ export function Detalhe({ id, doms, onVoltar }: Props) {
 
       {editando && link && (
         <Editor modo="editar" link={link} doms={doms} onFechar={() => setEditando(false)}
-          onSalvo={() => { setEditando(false); carregar() }} />
+          onSalvo={() => { setEditando(false); setBloqueio(null); carregar() }} onMudouUrls={carregar} />
       )}
 
       {!link && <SkeletonCards n={4} />}
@@ -219,22 +230,41 @@ export function Detalhe({ id, doms, onVoltar }: Props) {
               </div>
             </div>
           )}
+          {bloqueio && (
+            <div className="card" style={{ marginBottom: 14, borderColor: 'var(--red)' }}>
+              <b>Não dá pra fazer isso agora</b>
+              <p style={{ fontSize: 13, margin: '6px 0 10px' }}>{bloqueio}</p>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn sm" onClick={() => { setBloqueio(null); setEditando(true) }}><Pencil size={13} />Abrir o editor</button>
+                <button className="btn ghost sm" onClick={() => setBloqueio(null)}>Fechar</button>
+              </div>
+            </div>
+          )}
 
           <div style={{ marginBottom: 16 }}>
             <UrlCurta url={link.url_curta} nome={link.nome} hero />
             {link.urls.length > 1 && (
               <div className="dispmeta" style={{ marginTop: 8, marginBottom: 0 }}>
-                {link.urls.map((u) => (
-                  <button key={u.dominio} className="mchip" onClick={() => copiarComToast(u.url)} title="Copiar">
-                    {u.dominio}/{u.slug}{u.protegida && <Lock size={10} />}
-                  </button>
-                ))}
+                {link.urls.map((u) => {
+                  // endereco de dominio fora do ar nao pode sair copiado pros grupos
+                  const dom = u.estado_dominio ? BADGE[u.estado_dominio] : null
+                  const morto = u.ativa === false || (u.estado_dominio != null && u.estado_dominio !== 'ativo')
+                  return (
+                    <button key={u.dominio} className="mchip" disabled={morto}
+                      onClick={() => copiarComToast(u.url)} title={morto ? 'Endereço fora do ar: não copia' : 'Copiar'}
+                      style={morto ? { opacity: 0.55, textDecoration: 'line-through' } : undefined}>
+                      {u.dominio}/{u.slug}{u.protegida && <Lock size={10} />}
+                      {u.ativa === false && <span className="badge b-erro">inativa</span>}
+                      {dom && u.estado_dominio !== 'ativo' && <span className={'badge ' + dom.cls}>{dom.txt}</span>}
+                    </button>
+                  )
+                })}
               </div>
             )}
             {link.url_curta && (
               <a className="mut" style={{ fontSize: 12, display: 'inline-flex', gap: 4, alignItems: 'center', marginTop: 6 }}
-                href={link.url_curta + '?warm=painel'} target="_blank" rel="noreferrer">
-                <ExternalLink size={12} />abrir numa aba (conta como acesso)
+                href={link.url_curta} target="_blank" rel="noreferrer">
+                <ExternalLink size={12} />abrir numa aba (conta como clique de gente)
               </a>
             )}
           </div>
