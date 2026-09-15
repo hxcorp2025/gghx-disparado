@@ -5,7 +5,7 @@
 --
 -- Este arquivo NÃO é executável de ponta a ponta: é o mapa de quem faz o
 -- quê, mais as armadilhas que já custaram tempo. As migrations reais estão
--- aplicadas no Supabase ntavetjmfotlwmcgwsju (lnk_01 a lnk_34). Da lnk_27 em
+-- aplicadas no Supabase ntavetjmfotlwmcgwsju (lnk_01 a lnk_35b). Da lnk_27 em
 -- diante o SQL completo esta versionado em backend/migrations/.
 -- =====================================================================
 
@@ -210,7 +210,7 @@
 -- é porque o passo 1 não foi concluído.
 
 -- ---------------------------------------------------------------------
--- F3 (15/09/2026, lnk_33 + lnk_33b + lnk_34): projetos, lote e API com chave
+-- F3 (15/09/2026, lnk_33 + lnk_33b + lnk_34 + lnk_35): projetos, lote e API com chave
 -- ---------------------------------------------------------------------
 -- Direcao do Matheus: a aba Links serve TODOS os projetos da HX. O projeto
 -- e um rotulo que separa a lista; o dominio institucional (projeto_id null)
@@ -232,7 +232,9 @@
 -- API publica (anon key + chave hxl_ no corpo; nunca service_role):
 --   lnk_api_criar(token, link jsonb)       escopo api:criar
 --   lnk_api_ler(token, link_id?, url?)     escopo api:ler   (snapshot + kpis)
---   lnk_api_listar(token, projeto?, ...)   escopo api:ler
+--   lnk_api_listar(token, projeto?, ...)   escopo api:ler  (chave com 1 projeto
+--                                          lista ele; com varios, projeto e
+--                                          obrigatorio; devolve limite/truncado)
 --   lnk_api_editar(token, link_id, patch)  escopo api:editar (patch da tela +
 --                                          estado: ativo|pausado|congelado)
 --   Toda resposta e {ok, ...}; token invalido/revogado/sem escopo devolve
