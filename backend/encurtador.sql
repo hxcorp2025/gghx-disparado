@@ -5,7 +5,8 @@
 --
 -- Este arquivo NÃO é executável de ponta a ponta: é o mapa de quem faz o
 -- quê, mais as armadilhas que já custaram tempo. As migrations reais estão
--- aplicadas no Supabase ntavetjmfotlwmcgwsju (lnk_01 a lnk_13).
+-- aplicadas no Supabase ntavetjmfotlwmcgwsju (lnk_01 a lnk_30). Da lnk_27 em
+-- diante o SQL completo esta versionado em backend/migrations/.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -122,6 +123,79 @@
 --    Se dominio-a.com/x7k2 e dominio-b.com/x7k2 existissem, o caminho idêntico
 --    ligaria um domínio no outro. Por isso lnk_urls guarda um slug por
 --    (link, domínio), gerado aleatoriamente sem caracteres ambíguos.
+
+-- ---------------------------------------------------------------------
+-- V2 (15/09/2026) — o que a aba Links usa alem do rodizio
+-- PRD: hookmidia-claude-config/contexto/GESTOR_GRUPOS_HX/PRD_links_v2_2026-09-15.md
+-- ---------------------------------------------------------------------
+-- Leitura (gate mod_is_operador):
+--   lnk_painel_listar(busca, projeto, limite, ordem, tag, estado)
+--       ordem: recentes | cliques | nome | ultimo. Devolve url_curta,
+--       sparkline_7d (7 ints), tags, estado (ativo/pausado/congelado/
+--       expirado), cliques_hoje/7d/total, pessoas_7d (NULL sem cookie),
+--       protegido. Busca acha por nome, slug, destino e tag.
+--   lnk_painel_link(link_id, de, ate, grao)
+--       detalhe: kpis (cliques/robos/bloqueados/pessoas/ips/completude),
+--       serie por hora (ate 2 dias) ou dia, por_aparelho/sistema/navegador/
+--       familia/pais/regiao/cidade/referer/utm, por_destino (peso real x
+--       configurado com janela truncada), ultimos_acessos, historico e
+--       o bloco `notas` com a camada didatica de cada metrica.
+--   lnk_painel_tags(projeto)
+--
+-- Escrita (gate mod_is_operador; tudo valida ANTES de gravar e devolve
+-- {ok:false, erro} em portugues; nada fica meio-escrito):
+--   lnk_criar(..., p_slug, p_dominio, p_tags, p_observacao, p_expira_em, p_preview)
+--       os 6 primeiros parametros sao os de sempre; slug custom vai pro
+--       dominio institucional (fora do rodizio) se p_dominio for null.
+--   lnk_link_editar(link_id, patch)   so o que veio no patch muda.
+--       destinos = lista completa (quem sai e DESLIGADO, nunca apagado:
+--       lnk_cliques.destino_id aponta pra ele). params = lista completa.
+--       Nunca toca em lnk_urls.
+--   lnk_link_estado(link_id, 'ativo'|'pausado'|'congelado', forcar)
+--       pausado = fora do ar (destino_expirado do link ou 404 do dominio).
+--       Link com URL protegida pede forcar.
+--   lnk_url_custom(link_id, hostname, slug, forcar)
+--       cria ou renomeia o slug do link naquele dominio. Renomear com
+--       clique/entrega pede forcar; URL protegida NUNCA renomeia.
+--       Reservados: api admin app login logout static assets www health
+--       status dev test null undefined robots favicon sitemap warm.
+--
+-- Historico: lnk_link_historico (append-only; acao criado/editado/estado/
+-- slug, campos, antes/depois, por_email). RLS ligada, zero policy.
+--
+-- URL protegida: lnk_urls.protegida = slug em producao fora do nosso
+-- controle. eq8egq (pop-up do PDM) nasce protegida; so o banco desprotege.
+--
+-- UA: lnk_parse_ua(text) preenche ua_familia/device/os/browser com as
+-- MESMAS regras do Worker (parseUA em hx-links/src/index.js). Versao das
+-- regras = lnk_ua_v() aqui e UA_V la. Mudou regra: sobe os dois e roda
+--   select lnk_reclassificar_ua(lnk_ua_v());
+-- lnk_edge_clique parseia no insert quando o Worker nao mandou aparelho,
+-- entao a tela nao depende do deploy do Worker pra ter device preenchido.
+-- Paridade conferida por hx-links/scripts/testa-ua.mjs (fixture de 27 UAs).
+--
+-- Cookie hxv (Worker >= 1.2.0): "pessoas" honestas e A/B por pessoa
+-- estavel. Colunas hxv, hxv_novo em lnk_cliques. Antes do 1.2.0 a caixa
+-- "pessoas" vem NULL, nao zero.
+--
+-- KV: link fora do ar vira tipo 'purge' em lnk_kv_fila (DELETE na chave);
+-- slug renomeado purga a chave antiga. Propagacao ate 90 s (isolate 30 s +
+-- KV cacheTtl 60 s).
+--
+-- Vigia: lnk_vigia_404() a cada 30 min (cron lnk_vigia_404_30min):
+-- slug inexistente com >= 20 acessos de GENTE (celular/tablet ou
+-- navegacao_real) em 2h -> WhatsApp do Matheus via notificar_whatsapp
+-- ('links', cooldown 6h por slug). lnk_vigia_404(true) = dry-run.
+--
+-- Slugs legados recriados em 15/09/2026 como links proprios (tags legado,
+-- pdm): grupo-vip-pix-do-milhao e comunidade-vip-diego -> sndflw.com/i/
+-- comunidades-03. Antes disso, 9.202 cliques de compradores cairam na home.
+--
+-- 8. SMOKE TEST COM UA DE GENTE VIRA CLIQUE.
+--    curl com user-agent de Instagram + Sec-Fetch de navegacao e
+--    classificado como humano e entra em "cliques". Pra smoke, usar o
+--    curl cru (UA curl/x vira bot) ou marcar as linhas como 'interno'
+--    depois (foi o que aconteceu em 15/09: 4 linhas smoke_f1_15_09).
 
 -- ---------------------------------------------------------------------
 -- CADASTRAR UM DOMÍNIO NOVO (o que o Matheus precisa fazer)
