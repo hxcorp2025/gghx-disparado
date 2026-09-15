@@ -59,6 +59,9 @@ export function Detalhe({ id, doms, onVoltar }: Props) {
   const [periodo, setPeriodo] = useState<Periodo>('7d')
   const [porHora, setPorHora] = useState(false)
   const [editando, setEditando] = useState(false)
+  // quando o editor abre a partir de uma recusa ("configura o destino de expirado"),
+  // a secao avancada ja vem aberta no campo certo
+  const [editorAvancado, setEditorAvancado] = useState(false)
   const [ocupado, setOcupado] = useState(false)
   const [confirmar, setConfirmar] = useState<{ msg: string; acao: () => Promise<void> } | null>(null)
   // recusa dura do banco (ex.: pausar link protegido sem destino de expirado):
@@ -168,8 +171,9 @@ export function Detalhe({ id, doms, onVoltar }: Props) {
       <button className="voltar" onClick={onVoltar}><ArrowLeft size={14} />Links</button>
 
       {editando && link && (
-        <Editor modo="editar" link={link} doms={doms} onFechar={() => setEditando(false)}
-          onSalvo={() => { setEditando(false); setBloqueio(null); carregar() }} onMudouUrls={carregar} />
+        <Editor modo="editar" link={link} doms={doms} abrirAvancado={editorAvancado}
+          onFechar={() => { setEditando(false); setEditorAvancado(false) }}
+          onSalvo={() => { setEditando(false); setEditorAvancado(false); setBloqueio(null); carregar() }} onMudouUrls={carregar} />
       )}
 
       {!link && <SkeletonCards n={4} />}
@@ -235,7 +239,7 @@ export function Detalhe({ id, doms, onVoltar }: Props) {
               <b>Não dá pra fazer isso agora</b>
               <p style={{ fontSize: 13, margin: '6px 0 10px' }}>{bloqueio}</p>
               <div className="row" style={{ gap: 8 }}>
-                <button className="btn sm" onClick={() => { setBloqueio(null); setEditando(true) }}><Pencil size={13} />Abrir o editor</button>
+                <button className="btn sm" onClick={() => { setBloqueio(null); setEditorAvancado(true); setEditando(true) }}><Pencil size={13} />Abrir o editor</button>
                 <button className="btn ghost sm" onClick={() => setBloqueio(null)}>Fechar</button>
               </div>
             </div>

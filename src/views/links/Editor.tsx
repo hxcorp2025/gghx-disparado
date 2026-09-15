@@ -19,6 +19,8 @@ type Props = {
   onSalvo: (link: LinkSnapshot | null) => void
   /** o slug mudou mas o formulario continua aberto: o pai so recarrega */
   onMudouUrls?: () => void
+  /** abre a secao avancada ja expandida (ex.: veio do card "configura o destino de expirado") */
+  abrirAvancado?: boolean
 }
 
 // ISO (UTC) -> valor de <input type="datetime-local"> em horario de Brasilia
@@ -40,7 +42,7 @@ const iguais = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(
 // o banco valida pra VALER (e devolve o erro em portugues). Nada aqui
 // e destrutivo: destino que sai da lista e desligado, nunca apagado.
 // =====================================================================
-export function Editor({ modo, link, doms, onFechar, onSalvo, onMudouUrls }: Props) {
+export function Editor({ modo, link, doms, onFechar, onSalvo, onMudouUrls, abrirAvancado = false }: Props) {
   const editando = modo === 'editar' && !!link
 
   // ---------- basico ----------
@@ -165,9 +167,15 @@ export function Editor({ modo, link, doms, onFechar, onSalvo, onMudouUrls }: Pro
         let criadoLink = r.link ?? null
         // dois campos que a criacao nao aceita entram logo em seguida pelo editar
         if (criadoLink && (destinoExpirado || anuncio)) {
-          const r2 = await linksEditar(criadoLink.id, { destino_expirado: destinoExpirado || null, is_destino_de_anuncio: anuncio })
-          if (!r2.ok) toast(`Link criado, mas não consegui salvar o destino de expirado ou a marcação de anúncio: ${r2.erro ?? ''} Abre Editar pra ajustar.`, true)
-          else if (r2.link) criadoLink = r2.link
+          // try proprio: se a rede cair AQUI o link ja existe, e o catch geral
+          // diria "Falhou" e o operador criaria de novo, duplicando
+          try {
+            const r2 = await linksEditar(criadoLink.id, { destino_expirado: destinoExpirado || null, is_destino_de_anuncio: anuncio })
+            if (!r2.ok) toast(`Link criado, mas não consegui salvar o destino de expirado ou a marcação de anúncio: ${r2.erro ?? ''} Abre Editar pra ajustar.`, true)
+            else if (r2.link) criadoLink = r2.link
+          } catch (e2) {
+            toast(`Link criado, mas não consegui salvar o destino de expirado ou a marcação de anúncio (${e2 instanceof Error ? e2.message : 'falhou'}). Abre Editar pra ajustar.`, true)
+          }
         }
         toast(`Link criado${r.urls_criadas ? ` em ${r.urls_criadas} domínio(s)` : ''}.`)
         if (criadoLink) setCriado(criadoLink)
@@ -492,7 +500,7 @@ export function Editor({ modo, link, doms, onFechar, onSalvo, onMudouUrls }: Pro
       )}
 
       {/* ---------- avancado ---------- */}
-      <details className="ajuda" style={{ marginTop: 14 }}>
+      <details className="ajuda" style={{ marginTop: 14 }} open={abrirAvancado || undefined}>
         <summary>tags, observação, expiração, preview e query</summary>
         <div style={{ marginTop: 12 }}>
           <div className="field">

@@ -12,6 +12,13 @@ import { Editor } from './Editor'
 
 type Props = { doms: LinkDominiosPainel | null; onAbrir: (id: string) => void }
 
+// o que lnk_proxima_url devolve em `criterio`, traduzido pra frase de operador
+const CRITERIO: Record<string, string> = {
+  'raiz global mais parada': 'ficou mais tempo parado',
+  'fora do rodizio': 'fora do rodízio',
+  'url informada pelo painel': 'a que você copiou',
+}
+
 const ESTADOS: { id: LinkEstado | null; txt: string }[] = [
   { id: null, txt: 'Todos' },
   { id: 'ativo', txt: 'No ar' },
@@ -49,11 +56,17 @@ function CopiarParaDisparo({ link }: { link: LinkItem }) {
     }
   }
 
-  async function marcar(r: LinkProxima) {
+  async function marcar(r: LinkProxima, copiou: boolean) {
     // esperado + url_id: o banco avisa se outro operador andou com o rodizio no
     // meio e marca exatamente a URL que foi copiada
     const m = await linksProxima(link.id, r.dominio, r.url_id)
-    toast(m.aviso ?? `Entrega marcada em ${m.dominio}. Rodízio avançou.`)
+    if (m.url !== r.url) {
+      // nao deveria acontecer com url_id, mas se a URL foi desativada entre a
+      // espiada e o toque, o operador precisa saber que saiu OUTRO endereco
+      toast(`Atenção: o banco marcou ${m.dominio}, não o endereço que você copiou. Copia de novo: ${m.url}`, true)
+    } else {
+      toast(m.aviso ?? `${copiou ? 'Copiado. ' : ''}Entrega marcada em ${m.dominio}.`)
+    }
     setEspiada(null)
     setNaMao(false)
   }
@@ -68,8 +81,7 @@ function CopiarParaDisparo({ link }: { link: LinkItem }) {
         toast('Não consegui copiar. Toque e segure no endereço abaixo.', true)
         return
       }
-      await marcar(espiada)
-      toast('Copiado')
+      await marcar(espiada, true)
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Falhou', true)
     } finally {
@@ -98,14 +110,14 @@ function CopiarParaDisparo({ link }: { link: LinkItem }) {
       <p className="mut" style={{ fontSize: 12, margin: '6px 0 0' }}>
         {espiada.fora_do_rodizio
           ? 'Não há domínio no rodízio: esta é uma URL ativa, mas não serve pra disparo em massa.'
-          : `${espiada.dominio} (${espiada.criterio}). O rodízio só avança depois que você copiar.`}
+          : `${espiada.dominio} (${CRITERIO[espiada.criterio] ?? `usado ${quando(espiada.ultimo_uso)}`}). O rodízio só avança depois que você copiar.`}
       </p>
       {naMao && (
         <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
           <span className="st-falha" style={{ fontSize: 12.5 }}>Toque e segure no endereço pra copiar.</span>
           <button className="btn ghost sm" disabled={ocupado} onClick={async () => {
             setOcupado(true)
-            try { await marcar(espiada) } catch (e) { toast(e instanceof Error ? e.message : 'Falhou', true) } finally { setOcupado(false) }
+            try { await marcar(espiada, false) } catch (e) { toast(e instanceof Error ? e.message : 'Falhou', true) } finally { setOcupado(false) }
           }}>Já copiei, pode avançar o rodízio</button>
         </div>
       )}
