@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Plus, X, Lock, Save, Check } from 'lucide-react'
 import { Modal } from '../../components/Modal'
 import {
-  linksCriar, linksEditar, linksSlug, normalizaSlug, problemaDoSlug,
-  type LinkSnapshot, type LinkDominiosPainel, type NovoDestino, type NovoParam, type PatchLink, type LinkPreview,
+  linksCriar, linksEditar, linksSlug, normalizaSlug, problemaDoSlug, linksProjetos,
+  type LinkSnapshot, type LinkDominiosPainel, type NovoDestino, type NovoParam, type PatchLink, type LinkPreview, type LinkProjeto,
 } from '../../lib/linksDb'
 import {
   UTMS_PADRAO, lerDestino, montarPreview, normalizaValor, normalizaChave, validar, type ParDeUtm,
@@ -21,6 +21,10 @@ type Props = {
   onMudouUrls?: () => void
   /** abre a secao avancada ja expandida (ex.: veio do card "configura o destino de expirado") */
   abrirAvancado?: boolean
+  /** projetos ja carregados pelo pai; sem eles o editor busca sozinho (F3) */
+  projetos?: LinkProjeto[] | null
+  /** projeto pre-selecionado ao criar (o filtro ativo na lista) */
+  projetoInicial?: string
 }
 
 // ISO (UTC) -> valor de <input type="datetime-local"> em horario de Brasilia
@@ -42,11 +46,23 @@ const iguais = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(
 // o banco valida pra VALER (e devolve o erro em portugues). Nada aqui
 // e destrutivo: destino que sai da lista e desligado, nunca apagado.
 // =====================================================================
-export function Editor({ modo, link, doms, onFechar, onSalvo, onMudouUrls, abrirAvancado = false }: Props) {
+export function Editor({ modo, link, doms, onFechar, onSalvo, onMudouUrls, abrirAvancado = false, projetos: projetosProp, projetoInicial }: Props) {
   const editando = modo === 'editar' && !!link
 
   // ---------- basico ----------
   const [nome, setNome] = useState(link?.nome ?? '')
+  // projeto (F3): rotulo que separa a lista. Mover nao muda os enderecos que ja
+  // existem nem os cliques; o link so GANHA URL nos dominios exclusivos do projeto
+  // de destino (hoje todo dominio e global, entao nada muda de fato).
+  const [projetos, setProjetos] = useState<LinkProjeto[] | null>(projetosProp ?? null)
+  const [projeto, setProjeto] = useState(link?.projeto ?? projetoInicial ?? 'hx-geral')
+  useEffect(() => {
+    if (projetosProp && projetosProp.length) { setProjetos(projetosProp); return }
+    // aberto pelo Detalhe, que nao tem a lista: busca sozinho, com guarda de unmount
+    let vivo = true
+    linksProjetos().then((p) => { if (vivo) setProjetos(p) }).catch(() => { if (vivo) setProjetos([]) })
+    return () => { vivo = false }
+  }, [projetosProp])
   const [divisao, setDivisao] = useState<'clique' | 'pessoa'>(link?.divisao ?? 'clique')
   const [mergeQuery, setMergeQuery] = useState<'append' | 'ignorar' | 'whitelist'>(link?.merge_query ?? 'append')
 
@@ -158,7 +174,7 @@ export function Editor({ modo, link, doms, onFechar, onSalvo, onMudouUrls, abrir
     setErro(null)
     try {
       if (!editando) {
-        const r = await linksCriar(nome.trim(), todosCriar, montarParams(), divisao, 'hx-geral', {
+        const r = await linksCriar(nome.trim(), todosCriar, montarParams(), divisao, projeto, {
           merge_query: mergeQuery,
           slug: slugLimpo || null, dominio: slugLimpo ? dominioSlug : null,
           tags, observacao: observacao || null, expira_em: localParaIso(expira),
@@ -186,6 +202,7 @@ export function Editor({ modo, link, doms, onFechar, onSalvo, onMudouUrls, abrir
       // editar: manda so o que mudou
       const patch: PatchLink = {}
       if (nome.trim() !== link!.nome) patch.nome = nome.trim()
+      if (projeto !== link!.projeto) patch.projeto = projeto
       if (divisao !== link!.divisao) patch.divisao = divisao
       if (mergeQuery !== link!.merge_query) patch.merge_query = mergeQuery
       if (!iguais(tags, link!.tags)) patch.tags = tags
@@ -306,6 +323,16 @@ export function Editor({ modo, link, doms, onFechar, onSalvo, onMudouUrls, abrir
               ({leitura.outrosParams.map((p) => p.chave).join(', ')}). Fica intocado.
             </span>
           )}
+        </div>
+      )}
+
+      {(projetos?.length ?? 0) > 1 && (
+        <div className="field">
+          <label htmlFor="lk-proj">Projeto <span className="mut">(só separa a lista; os endereços e os cliques continuam valendo)</span></label>
+          <select id="lk-proj" value={projeto} onChange={(e) => setProjeto(e.target.value)}>
+            {projetos!.map((p) => <option key={p.slug} value={p.slug}>{p.nome}</option>)}
+            {!projetos!.some((p) => p.slug === projeto) && <option value={projeto}>{projeto}</option>}
+          </select>
         </div>
       )}
 

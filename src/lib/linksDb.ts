@@ -15,6 +15,8 @@ import { sb } from './supabase'
 //
 // v2 (15/09/2026): lista com URL curta e sparkline, detalhe por link,
 // editar/pausar/congelar/expirar, slug personalizado, historico.
+// F3 (15/09/2026, lnk_33): projetos (a aba serve TODOS os projetos da HX),
+// criacao em lote colando na tela, chaves de API (lnk_api_* com token).
 // Contrato completo: backend/encurtador.sql (secao V2) e backend/migrations/.
 
 export type DominioEstado =
@@ -393,6 +395,8 @@ export const linksCriar = async (
 /** patch: so o que veio muda. destinos e params sao a LISTA COMPLETA. */
 export type PatchLink = {
   nome?: string
+  /** slug do projeto: move o link; ele ganha URL nos dominios daquele projeto e as antigas seguem valendo */
+  projeto?: string
   divisao?: 'clique' | 'pessoa'
   merge_query?: 'append' | 'ignorar' | 'whitelist'
   query_whitelist?: string[]
@@ -421,6 +425,78 @@ export const linksEstado = (id: string, estado: 'ativo' | 'pausado' | 'congelado
 export const linksSlug = (id: string, hostname: string, slug: string, forcar = false) =>
   rpc<Resposta<{ url?: string; renomeado_de?: string | null; sem_mudanca?: boolean; link?: LinkSnapshot }>>(
     'lnk_url_custom', { p_link_id: id, p_hostname: hostname, p_slug: slug, p_forcar: forcar })
+
+// ---------- projetos (F3) ----------
+// A aba e ferramenta de TODOS os projetos da HX (decisao do Matheus, 15/09):
+// o projeto e so um rotulo pra separar a lista; dominio global serve a todos.
+export type LinkProjeto = {
+  slug: string
+  nome: string
+  ativo: boolean
+  rodizio_minimo: number
+  links: number
+  links_no_ar: number
+  criado_em: string
+}
+export const linksProjetos = () => rpc<LinkProjeto[]>('lnk_projetos_listar')
+/** ainda sem tela (decisao de produto pendente): projeto novo nasce pelo banco; a RPC ja existe pra quando entrar */
+export const linksProjetoCriar = async (nome: string, slug: string | null = null) =>
+  exigirOk(await rpc<Resposta<{ projeto?: { slug: string; nome: string; id: string } }>>(
+    'lnk_projeto_criar', { p_nome: nome.trim(), p_slug: slug?.trim() || null }))
+
+// ---------- criacao em lote (F3) ----------
+// A tela cola linhas, o banco valida uma a uma (dry) e depois cria as validas.
+// Uma linha ruim nao derruba as outras: cada criacao roda em subtransacao.
+export type LinhaLote = { n: number; url: string; nome?: string | null; slug?: string | null; tags?: string[] }
+export type LinhaLoteResultado = {
+  n: number; url: string; nome: string | null; slug: string | null; tags: string[]
+  ok: boolean; erro: string | null; id: string | null; url_curta: string | null
+}
+export type LoteResultado = {
+  ok: boolean; erro?: string; dry: boolean; projeto: string
+  /** dominio onde os slugs personalizados nascem (o institucional, fora do rodizio) */
+  dominio: string | null
+  total: number; validas: number; invalidas: number; linhas: LinhaLoteResultado[]
+}
+export type DefaultsLote = {
+  tags?: string[]
+  dominio?: string | null
+  divisao?: 'clique' | 'pessoa'
+  merge_query?: 'append' | 'ignorar' | 'whitelist'
+  observacao?: string | null
+}
+/** o banco aceita ate 500 por chamada; a tela manda 50 por vez ao CRIAR (timeout de 8 s do papel authenticated) */
+export const LOTE_MAX = 500
+export const LOTE_PASSO = 50
+export const linksCriarLote = async (projeto: string, linhas: LinhaLote[], dry: boolean, defaults: DefaultsLote = {}) =>
+  exigirOk(await rpc<LoteResultado>('lnk_criar_lote', { p_projeto: projeto, p_linhas: linhas, p_dry: dry, p_defaults: defaults }))
+
+// ---------- chaves de API (F3) ----------
+// A chave inteira so aparece UMA vez, na criacao; o banco guarda a impressao
+// digital (sha256). A chave do redirecionador nao aparece nem se revoga aqui.
+export type EscopoApi = 'api:criar' | 'api:ler' | 'api:editar'
+export type ChaveApi = {
+  id: string
+  nome: string
+  prefixo: string | null
+  escopo: string[]
+  /** slugs de projeto que a chave enxerga; null = todos (uso interno) */
+  projetos: string[] | null
+  ativa: boolean
+  ultimo_uso: string | null
+  usos: number
+  criado_em: string
+  revogado_em: string | null
+  criado_por: string | null
+}
+export const linksChaves = () => rpc<ChaveApi[]>('lnk_tokens_listar')
+/** projetos = null: a chave enxerga todos (so pra uso interno). Com lista, cria/le/edita so ali;
+ *  link de outro projeto responde "nao encontrado". Link protegido nunca e editavel pela API. */
+export const linksChaveCriar = async (nome: string, escopos: EscopoApi[], projetos: string[] | null) =>
+  exigirOk(await rpc<Resposta<{ id?: string; nome?: string; escopo?: string[]; projetos?: string[] | null; token?: string; prefixo?: string }>>(
+    'lnk_token_criar', { p_nome: nome.trim(), p_escopos: escopos, p_projetos: projetos }))
+export const linksChaveRevogar = async (id: string) =>
+  exigirOk(await rpc<Resposta<{ nome?: string; ja_estava?: boolean }>>('lnk_token_revogar', { p_id: id }))
 
 export const linksDominioCadastrar = async (hostname: string, raiz: string) =>
   exigirOk(await rpc<{ ok: boolean; erro?: string; hostname?: string; aviso?: string }>(

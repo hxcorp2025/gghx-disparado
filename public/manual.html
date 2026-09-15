@@ -225,7 +225,8 @@
 
 <h2 id="links">Links: URL curta, QR e o que aconteceu com cada link</h2>
 <p>
-  A aba Links é o nosso encurtador. Você cria um link curto (<code>l.hx-corp.com/o-nome-que-quiser</code>),
+  A aba Links é o nosso encurtador, e serve a todos os projetos da HX (PDM, JA, Sortudão, LCY e o
+  que vier), não só aos disparos. Você cria um link curto (<code>l.hx-corp.com/o-nome-que-quiser</code>),
   cola onde precisar (grupo, pop-up, bio, material impresso via QR) e vê quem clicou: quantas pessoas,
   de onde, por qual aparelho e navegador, hora a hora. Link que já está no ar não muda de endereço.
 </p>
@@ -265,6 +266,34 @@
       medir quanto cada versão vendeu. Link com mais de um destino e sem ele aparece marcado como
       "sem braço".</td></tr>
 </table>
+
+<h3>Projetos</h3>
+<p>
+  Todo link pertence a um projeto (PDM, JA Educação, Sortudão, Lucrando com YouTube ou HX Corp pra
+  uso geral). É só um rótulo pra separar a lista: o endereço curto e os cliques não mudam de projeto
+  pra projeto, e o domínio institucional serve a todos. Os botões de projeto em cima da lista
+  filtram; com o filtro ligado, <b>Novo link</b> e <b>Criar vários</b> já nascem naquele projeto.
+  Pra mover um link, abre <b>Editar</b> e troca o projeto. Projeto novo: o Matheus cria (por
+  enquanto direto no banco; a tela só lista).
+</p>
+
+<h3>Criar vários de uma vez</h3>
+<p>
+  Botão <b>Criar vários</b>. Cola uma lista, uma linha por link: só a URL já basta, ou
+  <code>destino, nome, slug, tag1|tag2</code>. Tab (colado de planilha) e ponto e vírgula separam
+  as colunas; a vírgula só separa quando vem seguida de espaço, porque vírgula colada faz parte de
+  muito endereço (<code>?ids=1,2,3</code>). Até 500 por vez. São dois passos de propósito:
+  <b>Conferir</b> não cria nada: mostra cada destino inteiro (é ali que você vê se uma linha foi
+  lida errado) e aponta as linhas com problema (destino sem https, slug inválido ou repetido, tag
+  demais). Depois, <b>Criar</b> cria as boas e pula as ruins, de 50 em 50, e mostra tudo que nasceu
+  com <b>Copiar todas</b> (nome e URL, um por linha) e <b>Baixar CSV</b>.
+</p>
+<p>
+  Se a internet cair no meio, a tela separa em três: as que <b>já existem</b> (a tabela), as que
+  <b>podem ter sido criadas ou não</b> (a fatia que estava em voo quando caiu: confere na lista antes
+  de colar de novo) e as que <b>não foram criadas</b> (essas pode colar de novo à vontade). O que já
+  foi criado nunca é desfeito.
+</p>
 
 <h3>O detalhe de um link</h3>
 <p>
@@ -350,6 +379,21 @@
   A coluna <b>Perdidos</b> é acesso a um endereço que não existe no domínio (link antigo ainda
   colado em algum lugar): a pessoa cai na página do domínio, não no destino. Quando passa de 20
   pessoas em duas horas, o Matheus recebe um aviso no WhatsApp com o slug pra recriar.
+</p>
+
+<h3>API: criar e ler links por fora do Send</h3>
+<p>
+  Na aba <b>API</b> (dentro de Links) você gera uma chave pra outro sistema criar, ler e editar links
+  sem entrar no Send: o n8n, um cliente, um script. Cada chave tem nome, escopos (criar, ler,
+  editar) e registro do último uso; o que ela fizer aparece no histórico do link como
+  <code>api:nome-da-chave</code>. A chave inteira aparece <b>uma vez</b>, na hora de gerar: copia
+  na hora. Perdeu, revoga e gera outra. Revogar corta o acesso no mesmo instante.
+</p>
+<p>
+  A própria aba mostra os exemplos prontos pra copiar (criar, ler pela URL curta, listar, pausar).
+  É um POST com JSON; chave errada ou sem o escopo devolve <code>nao_autorizado</code>, e erro de
+  regra volta em português no campo <code>erro</code>, igual à tela. Um link por chamada; pra
+  muitos, usa Criar vários.
 </p>
 
 <h2 id="ferramentas">Ferramentas</h2>

@@ -5,8 +5,9 @@ import { Lista } from './links/Lista'
 import { Detalhe } from './links/Detalhe'
 import { Dominios } from './links/Dominios'
 import { Cliques } from './links/Cliques'
+import { Chaves } from './links/Chaves'
 
-type Secao = 'links' | 'dominios' | 'geral'
+type Secao = 'links' | 'dominios' | 'geral' | 'api'
 
 // =====================================================================
 // Aba Links (v2, 15/09/2026): Lista -> Detalhe -> Editar, com o rodizio de
@@ -69,14 +70,14 @@ export function Links() {
           </p>
         </div>
         <div className="row" style={{ gap: 6 }}>
-          {([['links', 'Links'], ['dominios', 'Domínios'], ['geral', 'Visão geral']] as const).map(([id, t]) => (
+          {([['links', 'Links'], ['dominios', 'Domínios'], ['geral', 'Visão geral'], ['api', 'API']] as const).map(([id, t]) => (
             <button key={id} className={'btn sm' + (secao === id ? '' : ' ghost')}
               aria-pressed={secao === id} onClick={() => setSecao(id)}>{t}</button>
           ))}
         </div>
       </div>
 
-      {mostraRodizio && secao !== 'dominios' && (
+      {mostraRodizio && secao !== 'dominios' && secao !== 'api' && (
         <div className="dispmeta">
           <span className={'badge ' + (resumo.raizes < resumo.minimo ? 'b-agendado' : 'b-concluida')}>
             Rodízio: {resumo.raizes} de {resumo.minimo} domínios
@@ -100,6 +101,7 @@ export function Links() {
       {secao === 'links' && <Lista doms={doms} onAbrir={setAberto} />}
       {secao === 'dominios' && <Dominios doms={doms} carregando={carregando} recarregar={carregarDoms} />}
       {secao === 'geral' && <Cliques />}
+      {secao === 'api' && <Chaves />}
     </section>
   )
 }

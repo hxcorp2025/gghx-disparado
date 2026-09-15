@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link2, Plus, RefreshCw, ChevronRight, Send, Lock, Copy, X } from 'lucide-react'
+import { Link2, Plus, RefreshCw, ChevronRight, Send, Lock, Copy, X, Layers } from 'lucide-react'
 import {
-  linksListar, linksTags, linksEspiar, linksProxima,
-  type LinkItem, type LinkDominiosPainel, type LinkProxima, type OrdemLista, type LinkEstado,
+  linksListar, linksTags, linksEspiar, linksProxima, linksProjetos,
+  type LinkItem, type LinkDominiosPainel, type LinkProxima, type OrdemLista, type LinkEstado, type LinkProjeto,
 } from '../../lib/linksDb'
 import { Empty } from '../../components/Empty'
 import { SkeletonList } from '../../components/Skeleton'
 import { toast } from '../../lib/toast'
 import { n, quando, Ajuda, ESTADO_LINK, Sparkline, UrlCurta, copiarTexto } from './comum'
 import { Editor } from './Editor'
+import { Lote } from './Lote'
 
 type Props = { doms: LinkDominiosPainel | null; onAbrir: (id: string) => void }
 
@@ -139,10 +140,30 @@ export function Lista({ doms, onAbrir }: Props) {
   const [estado, setEstado] = useState<LinkEstado | null>(null)
   const [tag, setTag] = useState<string | null>(null)
   const [novo, setNovo] = useState(false)
+  const [lote, setLote] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
+  // projetos (F3): a aba serve todos os projetos da HX; o projeto e um rotulo
+  // que separa a lista. Com um projeto so, o filtro nem aparece.
+  const [projetos, setProjetos] = useState<LinkProjeto[]>([])
+  const [projeto, setProjeto] = useState<string | null>(null)
+  // sem a lista de projetos o lote nao abre: o operador montaria 500 linhas
+  // pra descobrir no "Conferir" que o projeto nao carregou
+  const [projetosErro, setProjetosErro] = useState<string | null>(null)
   // guarda de corrida: a resposta mais lenta nunca sobrescreve a mais nova
   const seq = useRef(0)
+
+  const carregarProjetos = useCallback(async () => {
+    try {
+      setProjetos(await linksProjetos())
+      setProjetosErro(null)
+    } catch (e) {
+      // a lista em si funciona sem: fica so estado e tag
+      setProjetosErro(e instanceof Error ? e.message : 'Não consegui carregar os projetos.')
+    }
+  }, [])
+  useEffect(() => { carregarProjetos() }, [carregarProjetos])
+  const nomeProjeto = (slug: string) => projetos.find((p) => p.slug === slug)?.nome ?? slug
 
   // a busca bate no banco (acha por nome, slug, destino e tag), entao espera
   // a pessoa parar de digitar em vez de disparar uma RPC por tecla
@@ -156,8 +177,8 @@ export function Lista({ doms, onAbrir }: Props) {
     setCarregando(true)
     try {
       const [l, t] = await Promise.all([
-        linksListar(buscaLenta, null, 100, ordem, tag, estado),
-        linksTags(),
+        linksListar(buscaLenta, projeto, 100, ordem, tag, estado),
+        linksTags(projeto),
       ])
       if (meu !== seq.current) return
       setLinks(l ?? [])
@@ -169,20 +190,28 @@ export function Lista({ doms, onAbrir }: Props) {
     } finally {
       if (meu === seq.current) setCarregando(false)
     }
-  }, [buscaLenta, ordem, tag, estado])
+  }, [buscaLenta, ordem, tag, estado, projeto])
 
   useEffect(() => { carregar() }, [carregar])
 
   // Decisao do PRD (15/09): o rodizio so protagoniza com 2+ raizes distintas.
   const rodizio = (doms?.resumo.raizes ?? 0) >= 2
   const semDominio = !!doms && doms.resumo.ativos === 0
-  const filtrando = !!buscaLenta || estado !== null || tag !== null
+  const filtrando = !!buscaLenta || estado !== null || tag !== null || projeto !== null
+  const multiProjeto = projetos.length > 1
 
   return (
     <>
       {novo && (
-        <Editor modo="criar" doms={doms} onFechar={() => setNovo(false)}
-          onSalvo={(link) => { setNovo(false); carregar(); if (link) onAbrir(link.id) }} />
+        <Editor modo="criar" doms={doms} projetos={projetos} projetoInicial={projeto ?? 'hx-geral'}
+          onFechar={() => setNovo(false)}
+          onSalvo={(link) => { setNovo(false); carregar(); carregarProjetos(); if (link) onAbrir(link.id) }} />
+      )}
+      {/* a abertura ja exige a lista de projetos (botao desabilitado sem ela); aqui nao
+          se condiciona de novo, senao um recarregamento vazio desmontaria o resultado */}
+      {lote && (
+        <Lote projetos={projetos} projetoInicial={projeto ?? 'hx-geral'}
+          onFechar={() => setLote(false)} onCriou={() => { carregar(); carregarProjetos() }} />
       )}
 
       <div className="toolbar between">
@@ -198,12 +227,32 @@ export function Lista({ doms, onAbrir }: Props) {
             <option value="ultimo">Último clique</option>
             <option value="nome">Nome</option>
           </select>
+          <button className="btn ghost" onClick={() => setLote(true)} disabled={semDominio || !projetos.length}
+            title={semDominio ? 'Cadastra um domínio antes'
+              : projetosErro ? `Sem a lista de projetos não dá pra criar em lote: ${projetosErro}`
+                : !projetos.length ? 'Carregando os projetos...' : 'Cola uma lista de destinos e cria todos de uma vez'}>
+            <Layers size={15} />Criar vários
+          </button>
           <button className="btn" onClick={() => setNovo(true)} disabled={semDominio}
             title={semDominio ? 'Cadastra um domínio antes' : undefined}>
             <Plus size={15} />Novo link
           </button>
         </div>
       </div>
+
+      {multiProjeto && (
+        <div className="filtros" style={{ marginBottom: 8 }}>
+          <span className="mut" style={{ fontSize: 12 }}>projeto:</span>
+          <button className={'chip' + (projeto === null ? ' on' : '')} aria-pressed={projeto === null} onClick={() => setProjeto(null)}>Todos</button>
+          {projetos.map((p) => (
+            <button key={p.slug} className={'chip' + (projeto === p.slug ? ' on' : '')}
+              aria-pressed={projeto === p.slug} onClick={() => setProjeto(projeto === p.slug ? null : p.slug)}
+              title={`${n(p.links)} link(s) no projeto, contando pausados e fora da busca`}>
+              {p.nome} <span className="mut">{n(p.links)}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="filtros" style={{ marginBottom: 14 }}>
         {ESTADOS.map((e) => (
@@ -235,11 +284,14 @@ export function Lista({ doms, onAbrir }: Props) {
 
       {carregando && !links && <SkeletonList rows={4} height={92} />}
 
-      {links && links.length === 0 && !novo && (
-        filtrando
-          ? <Empty Icon={Link2} title="Nenhum link com esse filtro" sub="Limpa a busca ou os filtros pra ver todos." />
-          : <Empty Icon={Link2} title="Nenhum link ainda"
-              sub="Crie o primeiro: cola o destino, dá um nome e sai uma URL curta com QR." />
+      {links && links.length === 0 && !novo && !lote && (
+        projeto !== null && !buscaLenta && estado === null && tag === null
+          ? <Empty Icon={Link2} title={`Nenhum link em ${nomeProjeto(projeto)} ainda`}
+              sub="Novo link ou Criar vários: o projeto já fica selecionado." />
+          : filtrando
+            ? <Empty Icon={Link2} title="Nenhum link com esse filtro" sub="Limpa a busca ou os filtros pra ver todos." />
+            : <Empty Icon={Link2} title="Nenhum link ainda"
+                sub="Crie o primeiro: cola o destino, dá um nome e sai uma URL curta com QR." />
       )}
 
       {links?.map((l) => {
@@ -251,6 +303,7 @@ export function Lista({ doms, onAbrir }: Props) {
             <button className="lk-main" onClick={() => onAbrir(l.id)} aria-label={`Abrir ${l.nome}`}>
               <div className="lk-title">
                 <b>{l.nome}</b>
+                {multiProjeto && projeto === null && <span className="pj-chip">{nomeProjeto(l.projeto)}</span>}
                 <span className={'badge ' + est.cls}>{est.txt}</span>
                 {l.protegido && (
                   <span className="badge b-rascunho" title="Esse endereço está colado em produção fora do Send: o slug não muda e pausar pede confirmação.">
@@ -301,7 +354,9 @@ export function Lista({ doms, onAbrir }: Props) {
           <b>Pessoas 7d</b> só aparece quando o link tem cookie de visitante; enquanto não tem, a
           coluna fica de fora em vez de mostrar zero.<br />
           <b>Em produção</b> marca um endereço que está colado fora do Send (pop-up, material). Ele não
-          muda de slug, e pausar pede uma confirmação a mais.
+          muda de slug, e pausar pede uma confirmação a mais.<br />
+          <b>Projeto</b> é só um rótulo pra separar a lista (PDM, JA, Sortudão...): o endereço e os
+          cliques não mudam. Dá pra mover um link de projeto no Editar.
         </Ajuda>
       )}
     </>

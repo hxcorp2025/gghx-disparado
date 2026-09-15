@@ -5,7 +5,7 @@
 --
 -- Este arquivo NÃO é executável de ponta a ponta: é o mapa de quem faz o
 -- quê, mais as armadilhas que já custaram tempo. As migrations reais estão
--- aplicadas no Supabase ntavetjmfotlwmcgwsju (lnk_01 a lnk_32). Da lnk_27 em
+-- aplicadas no Supabase ntavetjmfotlwmcgwsju (lnk_01 a lnk_34). Da lnk_27 em
 -- diante o SQL completo esta versionado em backend/migrations/.
 -- =====================================================================
 
@@ -208,6 +208,57 @@
 --
 -- Se ficar preso em 'pendente' com "a zona ainda não está na nossa conta",
 -- é porque o passo 1 não foi concluído.
+
+-- ---------------------------------------------------------------------
+-- F3 (15/09/2026, lnk_33 + lnk_33b + lnk_34): projetos, lote e API com chave
+-- ---------------------------------------------------------------------
+-- Direcao do Matheus: a aba Links serve TODOS os projetos da HX. O projeto
+-- e um rotulo que separa a lista; o dominio institucional (projeto_id null)
+-- serve a todos, e dominio novo nasce global.
+--
+-- Projetos (gate mod_is_operador):
+--   lnk_projetos_listar()            -> [{slug, nome, links, links_no_ar, ...}]
+--   lnk_projeto_criar(nome, slug?)   -> slug derivado do nome quando nao vem
+--   lnk_link_editar(id, {projeto})   -> move o link; ganha URL nos dominios
+--                                       daquele projeto, as antigas seguem valendo
+--
+-- Lote (gate lnk_pode):
+--   lnk_criar_lote(projeto, linhas [{n, url, nome?, slug?, tags?}], dry, defaults)
+--       ate 500 linhas; dry=true so valida e devolve linha a linha
+--       {ok, erro}; dry=false cria cada linha valida em SUBTRANSACAO (uma
+--       ruim nao derruba as outras) e devolve id + url_curta. A tela manda
+--       50 por chamada ao criar (statement_timeout de 8 s do authenticated).
+--
+-- API publica (anon key + chave hxl_ no corpo; nunca service_role):
+--   lnk_api_criar(token, link jsonb)       escopo api:criar
+--   lnk_api_ler(token, link_id?, url?)     escopo api:ler   (snapshot + kpis)
+--   lnk_api_listar(token, projeto?, ...)   escopo api:ler
+--   lnk_api_editar(token, link_id, patch)  escopo api:editar (patch da tela +
+--                                          estado: ativo|pausado|congelado)
+--   Toda resposta e {ok, ...}; token invalido/revogado/sem escopo devolve
+--   {ok:false, erro:'nao_autorizado'}; excecao vira {ok:false, erro}.
+--   Regras do gate (lnk_34): a chave tem ESCOPO DE PROJETO (lnk_edge_tokens.
+--   projetos; null = todos, so uso interno) - link fora do escopo responde
+--   link_nao_encontrado, projeto fora do escopo nao_autorizado; link com URL
+--   PROTEGIDA (colada em producao, ex. eq8egq) nunca e editavel pela API
+--   (link_protegido); lnk_api_editar e tudo-ou-nada (erro em qualquer parte
+--   = RAISE + rollback, JSON volta pelo DETAIL).
+--   Como funciona por dentro: lnk_api_auth valida (sha256 + escopo) e conta
+--   o uso; a funcao seta lnk.api='1' e lnk.ator='api:<nome>' com set_config
+--   LOCAL a transacao e chama a RPC do painel, cujo gate agora e lnk_pode()
+--   = mod_is_operador() OU lnk.api='1'. O historico grava o ator da API.
+--
+-- Chaves (gate mod_is_operador; tela Links > API):
+--   lnk_token_criar(nome, escopos[], projetos[] | null)
+--                                     -> devolve a chave UMA vez (hxl_ + 48 hex);
+--                                        o banco guarda sha256 + prefixo; o nome
+--                                        fica reservado mesmo depois de revogada
+--   lnk_tokens_listar()               -> so chaves api:*; a do Worker nao aparece
+--   lnk_token_revogar(id)             -> imediato; recusa a chave do Worker
+--
+-- Armadilha 9: papel anon tem statement_timeout de 3 s. A API cria UM link
+-- por chamada; pra muitos, a tela (lote) ou chamadas em sequencia.
+-- Medido 15/09: lote real de 50 linhas = 423 ms (authenticated, 8 s de teto).
 
 -- ---------------------------------------------------------------------
 -- DEPLOY DO WORKER
