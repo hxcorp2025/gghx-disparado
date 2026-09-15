@@ -5,7 +5,7 @@
 --
 -- Este arquivo NÃO é executável de ponta a ponta: é o mapa de quem faz o
 -- quê, mais as armadilhas que já custaram tempo. As migrations reais estão
--- aplicadas no Supabase ntavetjmfotlwmcgwsju (lnk_01 a lnk_30). Da lnk_27 em
+-- aplicadas no Supabase ntavetjmfotlwmcgwsju (lnk_01 a lnk_32). Da lnk_27 em
 -- diante o SQL completo esta versionado em backend/migrations/.
 -- =====================================================================
 
