@@ -187,7 +187,11 @@ export type LinkDetalhe = {
     primeiro_clique: string | null
     ultimo_clique: string | null
     completude: { aparelho: number | null; cidade: number | null; referer: number | null; cookie: number | null }
-    cliques_periodo_anterior: number
+    /** comparacao so entre janelas FECHADAS (exclui o dia em curso dos dois lados) */
+    cliques_periodo_fechado: number | null
+    cliques_periodo_anterior: number | null
+    base_variacao: string
+    periodo_parcial: boolean
     variacao_pct: number | null
   }
   serie: { t: string; acessos: number; cliques: number; robos: number; parcial: boolean }[]

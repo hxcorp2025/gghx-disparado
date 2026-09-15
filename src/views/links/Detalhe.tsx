@@ -267,8 +267,8 @@ export function Detalhe({ id, doms, onVoltar }: Props) {
                   <div className="val">{n(k.cliques)}</div>
                   <div className="sub">
                     {variacao == null
-                      ? (k.cliques_periodo_anterior === 0 ? 'sem período anterior pra comparar' : '·')
-                      : <><span className={variacao >= 0 ? 'delta-up' : 'delta-down'}>{variacao >= 0 ? '+' : ''}{pct(variacao)}</span> vs período anterior ({n(k.cliques_periodo_anterior)})</>}
+                      ? (k.cliques_periodo_anterior ? '·' : 'sem período anterior fechado pra comparar')
+                      : <><span className={variacao >= 0 ? 'delta-up' : 'delta-down'}>{variacao >= 0 ? '+' : ''}{pct(variacao)}</span> vs anterior, {k.base_variacao ?? 'dias completos'} ({n(k.cliques_periodo_fechado)} × {n(k.cliques_periodo_anterior)})</>}
                   </div>
                 </div>
                 <div className="statcard sc-pessoas">
