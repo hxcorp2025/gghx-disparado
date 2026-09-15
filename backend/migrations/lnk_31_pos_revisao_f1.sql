@@ -1,0 +1,43 @@
+-- =====================================================================
+-- lnk_31: correcoes do gate de revisao da F1 (15/09/2026)
+-- Revisor (perfil Diretor de Dados + Engenheiro de Confiabilidade) reprovou
+-- a F1 com 5 obrigatorias, todas no SQL do painel; nenhuma no caminho do
+-- 302 nem no eq8egq. Worker 1.2.0 aprovado. Aplicadas aqui as 5 + as
+-- sugestoes 1, 2, 5 e 7. Sugestao 3 foi no Worker (preview 'bloquear'
+-- registra o acesso). Sugestoes 4, 6, 8 e 9 viraram proposta na capsula.
+--
+-- Mecanica: substituicao textual sobre o corpo em producao
+-- (pg_get_functiondef + replace), com contagem exata de ocorrencias: se o
+-- trecho nao existir 1x, a migration falha inteira em vez de aplicar pela
+-- metade. Os arquivos lnk_28, lnk_29 e lnk_30 deste diretorio ja trazem o
+-- texto final (patch identico, hx-links/scratchpad pos_revisao_f1.py).
+--
+-- 1. lnk_link_editar: `ordem = v_i, updated_at = now()` -> `ordem = v_i`.
+--    Renomear rotulo ou reordenar nao pode zerar a janela de afericao de
+--    peso; quem carimba updated_at e o trigger lnk_tg_peso_mudou, so quando
+--    peso, peso_efetivo, is_active ou url mudam.
+-- 2. lnk_painel_link: `bloqueados` so conta classe humano/desconhecido e
+--    inclui dominio_inativo/slug_inexistente; `nao_classificados` idem.
+--    Sem isso, robo num link pausado somava em dois baldes e a decomposicao
+--    passava do total.
+-- 3. lnk_painel_listar: `ultimo_clique` usa lnk_contavel (era classe =
+--    'humano'), senao link pausado mostrava "ultimo clique: agora".
+-- 4. lnk_painel_link: variacao vs periodo anterior compara so janelas
+--    FECHADAS (exclui o dia em curso dos dois lados) e declara
+--    base_variacao / periodo_parcial / cliques_periodo_fechado. Sem isso,
+--    "hoje pela metade" contra "ontem inteiro" saia negativo o dia todo.
+--    Guarda: janela sem nenhum dia completo devolve variacao null.
+-- 5. lnk_link_estado: pausar link com URL protegida SEM destino_expirado e
+--    recusado (nao e so "confirma?"): sem destino de expirado, pausar joga
+--    quem clica na home do dominio, o incidente de 03-14/09.
+-- S1. janela de afericao ignora updated_at = created_at (destino nunca
+--     editado nao nasce "truncado").
+-- S2. vigia 404: gente exclui ua_robo/asn_nao_residencial e exige >= 5 IPs
+--     distintos (ou 0 = linha do Worker 1.1.0, que nao hasheava IP no 404).
+-- S5. ordenacao da lista por timestamptz, nao por texto.
+-- S7. vigia avisa fila de KV travada (status <> ok e tentativas >= 5).
+--
+-- O SQL completo aplicado esta no historico de migrations do Supabase
+-- (lnk_31_pos_revisao_f1). Para conferir o que esta no ar:
+--   select pg_get_functiondef('public.lnk_painel_link(uuid,timestamptz,timestamptz,text)'::regprocedure);
+-- =====================================================================

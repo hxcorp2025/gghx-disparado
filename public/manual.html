@@ -76,7 +76,7 @@
   <a href="#grupos">Grupos e os que são pulados sozinho</a>
   <a href="#copy">Copy com IA</a>
   <a href="#disparo">Novo disparo e Disparos</a>
-  <a href="#links">Links: o encurtador e o rodízio de domínio</a>
+  <a href="#links">Links: URL curta, QR e o que aconteceu com cada link</a>
   <a href="#ferramentas">Ferramentas</a>
   <a href="#travou">Quando algo não sai: por onde olhar</a>
 </div>
@@ -223,33 +223,37 @@
   Dá pra reenviar só nos pulados depois, pelo botão da tela de detalhe.
 </p>
 
-<h2 id="links">Links: o encurtador e o rodízio de domínio</h2>
+<h2 id="links">Links: URL curta, QR e o que aconteceu com cada link</h2>
 <p>
-  Aba nova. Ela existe por causa de uma coisa só: a análise de agosto mostrou que o que derrubava
-  as comunidades não era horário nem volume, era o <b>link sempre no mesmo domínio</b>. Agora o
-  link que você cola no grupo é nosso, e ele troca de endereço a cada disparo.
+  A aba Links é o nosso encurtador. Você cria um link curto (<code>l.hx-corp.com/o-nome-que-quiser</code>),
+  cola onde precisar (grupo, pop-up, bio, material impresso via QR) e vê quem clicou: quantas pessoas,
+  de onde, por qual aparelho e navegador, hora a hora. Link que já está no ar não muda de endereço.
 </p>
 
-<h3>Na hora do disparo, é isto que você faz</h3>
-<ol>
-  <li>Abre a aba <b>Links</b>.</li>
-  <li>No quadro de cima, escolhe o link e clica em <b>Copiar</b>.</li>
-  <li>Cola na mensagem. Pronto.</li>
-</ol>
+<h3>A lista</h3>
 <p>
-  Você <b>não escolhe</b> o domínio, e isso é de propósito: escolher é pensar, e pensar acaba
-  levando a gente sempre pros mesmos dois. O sistema entrega o que ficou mais tempo parado.
-  A URL já aparece na tela antes de você clicar, então dá pra conferir sem gastar.
+  Cada linha mostra o nome, o estado (<b>no ar</b>, <b>pausado</b>, <b>congelado</b> ou <b>expirado</b>),
+  as tags, a URL curta com os botões <b>Copiar</b> e <b>QR</b>, o desenho dos últimos 7 dias e os cliques
+  de gente em 7 dias e hoje. A busca acha por nome, slug, destino ou tag; os botões de cima filtram
+  por estado e por tag.
+</p>
+<p>
+  <b>Em produção</b> marca um endereço colado fora do Send (pop-up, GTM, material). O slug dele não
+  muda, e pausar pede uma confirmação a mais, porque pausar tira do ar o que está colado lá fora.
 </p>
 
 <h3>Criar um link</h3>
 <p>
-  Botão <b>Novo link</b>. Você cola o endereço de destino, dá um nome pra achar depois, e preenche
-  as UTMs. Se o endereço que você colou já tinha UTM, eu puxo pros campos e aviso. O que não é UTM
-  fica intocado.
+  Botão <b>Novo link</b>. Cola o destino, dá um nome pra achar depois e preenche as UTMs. Se o
+  endereço que você colou já tinha UTM, eu puxo pros campos e aviso. O que não é UTM fica intocado.
 </p>
 <p>
-  Acento, espaço e maiúscula somem enquanto você digita. É de propósito: o Google conta
+  No fim, se quiser, escolhe um <b>slug personalizado</b> (o nome que vem depois da barra): de 3 a 40
+  caracteres, só letras minúsculas, números, traço e sublinhado. Deixou vazio, sai um aleatório de
+  6 letras. Criou, abre o detalhe já com o QR pra baixar em PNG ou SVG.
+</p>
+<p>
+  Acento, espaço e maiúscula somem enquanto você digita nas UTMs. É de propósito: o Google conta
   "Black Friday" e "black-friday" como duas campanhas diferentes, e aí a soma nunca fecha.
 </p>
 <table>
@@ -258,56 +262,91 @@
   <tr><td>utm_medium</td><td>Tipo de canal. <b>grupo</b>, quando é disparo em comunidade.</td></tr>
   <tr><td>utm_campaign</td><td>Qual campanha. Ex.: <b>vip-setembro</b>.</td></tr>
   <tr><td>utm_content</td><td><b>O braço do teste.</b> É este campo que separa A de B na hora de
-      medir quanto cada versão vendeu. Link sem ele aparece marcado como "sem braço" e a venda
-      dele não tem como ser separada depois.</td></tr>
+      medir quanto cada versão vendeu. Link com mais de um destino e sem ele aparece marcado como
+      "sem braço".</td></tr>
 </table>
+
+<h3>O detalhe de um link</h3>
+<p>
+  Clica em qualquer linha. Em cima, a URL curta grande com Copiar e QR, e os botões <b>Editar</b>,
+  <b>Pausar</b> e <b>Congelar</b>. Escolhe o período (24 h, 7, 30 ou 90 dias) e vê:
+</p>
+<ul>
+  <li><b>Cliques de gente</b>: só pessoa de verdade, com o link no ar. O robô que o WhatsApp manda
+      pra montar a prévia não conta, e acesso em link pausado ou expirado também não. A variação
+      compara só dias completos com o período anterior do mesmo tamanho.</li>
+  <li><b>Pessoas</b>: quantas pessoas distintas, pelo cookie de visitante (vale 1 ano). Enquanto o
+      link não tiver cookie, a caixa fica vazia em vez de mostrar zero.</li>
+  <li><b>Robôs</b> (crawler de prévia e bots) e <b>Hoje</b>.</li>
+  <li>O gráfico por dia ou por hora, com o período em andamento sombreado.</li>
+  <li><b>Quem clicou</b>: aparelho, navegador, sistema, se abriu dentro de app (Instagram, Facebook,
+      WhatsApp) ou no navegador, estado, cidade, de onde veio, e as UTMs que chegaram coladas no
+      link curto.</li>
+  <li>Destinos: peso configurado contra o que aconteceu, com a margem normal do sorteio.</li>
+  <li>Os últimos 30 acessos (com robôs e testes, pra você ver o que o link recebe) e o histórico de
+      mudanças: quem mudou o quê, quando.</li>
+</ul>
+<p>
+  Cada bloco tem um "como ler" embaixo. Duas coisas que enganam: o Chrome moderno esconde a versão
+  real do sistema ("Android 10" e "Windows" podem ser qualquer versão; iOS e navegador in-app dizem
+  a verdade), e "de onde veio" fica vazio quase sempre, porque Instagram, Facebook e WhatsApp in-app
+  não informam. Não é erro de rastreio.
+</p>
+
+<h3>Editar, pausar, congelar, expirar</h3>
+<p>
+  <b>Editar</b> muda nome, destinos (ligar, desligar, peso), UTMs, tags, observação, data de
+  expiração, o destino de quem clicar depois de expirado ou pausado, e a prévia (o card que o
+  WhatsApp e a Meta mostram). Destino que sai da lista é desligado, nunca apagado: o histórico dele
+  fica. O endereço curto não muda por aqui: renomear o slug tem um campo próprio e, se o link já
+  teve clique, pede confirmação, porque quem tem o endereço antigo perde o link.
+</p>
+<p>
+  <b>Pausar</b> tira do ar: quem clicar vai pro destino de expirado que você configurou, ou pra
+  página do domínio. <b>Congelar</b> deixa no ar com cache longo na borda, pra link que não vai mais
+  mudar. Toda mudança leva até 90 segundos pra valer no endereço curto.
+</p>
 
 <h3>Mais de um destino no mesmo link</h3>
 <p>
   Dá pra mandar o mesmo link pra dois ou mais lugares e escolher quanto vai pra cada um. O peso é
   relativo: se você põe 3 e 1, o primeiro leva 75% e o segundo 25%. Não precisa somar 100.
-  Peso 0 desliga um destino sem apagar, então o que já foi medido continua no relatório.
+  Peso 0 ou destino desligado sai do sorteio sem apagar, então o que já foi medido continua no
+  relatório. <b>Por pessoa</b> manda sempre a mesma pessoa pro mesmo destino (pelo cookie), que é o
+  que torna um teste A/B honesto.
 </p>
 <p>
   Uma coisa que assusta e não é defeito: sorteio tem variação. Com metade pra cada lado e 100
-  cliques, ver 54 e 46 é normal. Na aba <b>Cliques</b> eu mostro a margem esperada ao lado do
-  número, e ela vai apertando conforme o volume cresce.
+  cliques, ver 54 e 46 é normal. O detalhe mostra a margem esperada ao lado do número, e ela vai
+  apertando conforme o volume cresce.
 </p>
 
-<h3>Domínios</h3>
+<h3>Domínios e rodízio</h3>
 <p>
-  Cada domínio novo divide a exposição de todos os outros. Com dois, cada um aparece em metade dos
-  disparos; com seis, em um sexto. Por isso a tela avisa quando estão poucos.
+  Com um domínio só (hoje o institucional, <code>l.hx-corp.com</code>) não existe rodízio, e a tela
+  não mostra. Quando houver dois ou mais domínios de raiz diferente, aparece na linha de cada link
+  o botão <b>Copiar pra disparo</b>: ele entrega a URL do domínio que ficou mais tempo parado e
+  marca a entrega. Você não escolhe o domínio, de propósito: escolher é pensar, e pensar acaba
+  levando a gente sempre pros mesmos dois.
 </p>
 <p>
   O que conta é o <b>domínio raiz</b>, não o endereço. Quem bloqueia link trabalha na raiz: se
   <code>exemplo.com</code> for marcado, todos os <code>l.exemplo.com</code>,
   <code>promo.exemplo.com</code> e afins caem junto. Seis endereços do mesmo domínio
-  seriam um alvo só. Por isso o rodízio conta raízes diferentes.
-</p>
-<p>
-  Domínio novo é o Matheus quem traz. Depois de cadastrado, o resto é automático e leva menos de
-  dois minutos.
+  seriam um alvo só. Domínio novo é o Matheus quem traz; depois de cadastrado, o resto é automático.
 </p>
 
-<h3>A tabela que você precisa olhar toda semana</h3>
+<h3>Visão geral: a tabela que você olha toda semana</h3>
 <p>
-  Em <b>Cliques</b>, o quadro <b>Por domínio</b> é o alarme de incêndio. Domínio que foi entregue
-  muitas vezes nos disparos e mesmo assim tem clique perto de zero quase sempre já está bloqueado
-  dentro do WhatsApp, mesmo que nenhum grupo tenha caído ainda. Marca como suspeito na aba
-  Domínios: sai do rodízio na hora, e os links antigos continuam abrindo.
-</p>
-
-<h3>Por que "acessos" e "cliques" são números diferentes</h3>
-<p>
-  Quando você cola um link no grupo, o WhatsApp abre ele sozinho pra montar aquela prévia com foto
-  e título, <b>antes de qualquer pessoa tocar na tela</b>. Num disparo pra 101 grupos, só isso já
-  gera mais de cem acessos. Se a gente somasse tudo, o painel mostraria clique que nunca existiu.
+  Todos os links somados. O quadro <b>Por domínio</b> é o alarme de incêndio: domínio que foi
+  entregue muitas vezes nos disparos e mesmo assim tem clique perto de zero quase sempre já está
+  bloqueado dentro do WhatsApp, mesmo que nenhum grupo tenha caído ainda. Marca como suspeito na
+  aba Domínios: sai do rodízio na hora, e os links antigos continuam abrindo.
 </p>
 <p>
-  Por isso a tela mostra três números lado a lado: <b>acessos</b> (tudo), <b>robôs</b> (a prévia) e
-  <b>cliques de gente</b>. O terceiro é o que vale pra decidir. E "pessoas" é estimativa mesmo, sem
-  login não dá pra saber ao certo: serve pra ordem de grandeza, não pra contar lead.
+  A coluna <b>Perdidos</b> é acesso a um endereço que não existe no domínio (link antigo ainda
+  colado em algum lugar): a pessoa cai na página do domínio, não no destino. Quando passa de 20
+  pessoas em duas horas, o Matheus recebe um aviso no WhatsApp com o slug pra recriar.
 </p>
 
 <h2 id="ferramentas">Ferramentas</h2>

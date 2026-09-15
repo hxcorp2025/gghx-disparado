@@ -1,3 +1,4 @@
+-- ⚠ Corrigida pela lnk_31 (gate de revisao 15/09/2026): este arquivo ja traz o texto final.
 -- =====================================================================
 -- lnk_29: detalhe por link (lnk_painel_link) e lista v2 (lnk_painel_listar)
 -- PRD Links HX v2 (15/09/2026), F1 (d).
@@ -59,7 +60,7 @@ declare
   v_tz text := 'America/Sao_Paulo';
   v_link jsonb; v_de timestamptz; v_ate timestamptz; v_grao text; v_dur interval;
   v_kpis jsonb; v_serie jsonb; v_dest jsonb; v_dom jsonb; v_ult jsonb; v_hist jsonb;
-  v_ant bigint; v_cliques bigint; v_hoje_ini timestamptz;
+  v_ant bigint; v_cliques bigint; v_hoje_ini timestamptz; v_fech timestamptz;
 begin
   if not public.mod_is_operador() then raise exception 'sem permissao' using errcode = '42501'; end if;
   v_link := public.lnk_link_snapshot(p_link_id);
@@ -81,9 +82,11 @@ begin
     'robos', count(*) filter (where classe in ('crawler', 'bot')),
     'crawlers', count(*) filter (where classe = 'crawler'),
     'internos', count(*) filter (where classe = 'interno'),
-    'bloqueados', count(*) filter (where classe_motivo && array['link_expirado', 'link_inativo']),
+    -- so gente e desconhecido: robo/interno num link pausado continua em robos/internos (revisao 15/09)
+    'bloqueados', count(*) filter (where classe in ('humano', 'desconhecido')
+                     and classe_motivo && array['link_expirado', 'link_inativo', 'dominio_inativo', 'slug_inexistente']),
     'nao_classificados', count(*) filter (where classe = 'desconhecido'
-                                             and not (classe_motivo && array['link_expirado', 'link_inativo'])),
+                     and not (classe_motivo && array['link_expirado', 'link_inativo', 'dominio_inativo', 'slug_inexistente'])),
     'pct_robo', round(100.0 * count(*) filter (where classe in ('crawler', 'bot')) / nullif(count(*), 0), 1),
     'pessoas', nullif(count(distinct hxv) filter (where public.lnk_contavel(classe, classe_motivo) and hxv is not null), 0),
     'cliques_com_cookie', count(*) filter (where public.lnk_contavel(classe, classe_motivo) and hxv is not null),
@@ -107,12 +110,24 @@ begin
   from public.lnk_cliques c
   where c.link_id = p_link_id and c.ts >= v_de and c.ts < v_ate;
 
-  v_cliques := (v_kpis->>'cliques')::bigint;
-  select count(*) into v_ant from public.lnk_cliques c
-   where c.link_id = p_link_id and c.ts >= v_de - v_dur and c.ts < v_de
-     and public.lnk_contavel(c.classe, c.classe_motivo);
+  -- variacao so entre janelas FECHADAS: exclui o dia em curso dos dois lados, senao
+  -- "hoje pela metade" contra "ontem inteiro" sai negativo o dia todo (revisao 15/09)
+  v_fech := least(v_ate, v_hoje_ini);
+  if v_fech > v_de then
+    select count(*) into v_cliques from public.lnk_cliques c
+     where c.link_id = p_link_id and c.ts >= v_de and c.ts < v_fech
+       and public.lnk_contavel(c.classe, c.classe_motivo);
+    select count(*) into v_ant from public.lnk_cliques c
+     where c.link_id = p_link_id and c.ts >= v_de - (v_fech - v_de) and c.ts < v_de
+       and public.lnk_contavel(c.classe, c.classe_motivo);
+  else
+    v_cliques := null; v_ant := null;
+  end if;
   v_kpis := v_kpis || jsonb_build_object(
+    'cliques_periodo_fechado', v_cliques,
     'cliques_periodo_anterior', v_ant,
+    'base_variacao', case when v_fech > v_de then 'dias completos (exclui hoje)' else 'sem dia completo no período' end,
+    'periodo_parcial', v_ate > v_hoje_ini,
     'variacao_pct', case when v_ant > 0 then round(100.0 * (v_cliques - v_ant) / v_ant, 1) end);
 
   -- ---------- serie ----------
@@ -159,7 +174,8 @@ begin
     into v_dest
   from public.lnk_destinos d
   join lateral (
-    select greatest(v_de, coalesce(max(d2.updated_at), v_de)) janela,
+    -- so conta mudanca de verdade: destino nunca editado tem updated_at = created_at (sugestao 1)
+    select greatest(v_de, coalesce(max(d2.updated_at) filter (where d2.updated_at > d2.created_at), v_de)) janela,
            sum(greatest(coalesce(d2.peso_efetivo, d2.peso), 0)) filter (where d2.is_active)::numeric soma,
            count(*) filter (where d2.is_active and coalesce(d2.peso_efetivo, d2.peso) > 0) vivos
     from public.lnk_destinos d2 where d2.link_id = p_link_id) w on true
@@ -284,8 +300,8 @@ begin
       select x, row_number() over (order by
                case when p_ordem = 'cliques' then -(x->>'cliques_7d')::int end,
                case when p_ordem = 'nome' then lower(x->>'nome') end,
-               case when p_ordem = 'ultimo' then x->>'ultimo_clique' end desc nulls last,
-               x->>'criado_em' desc) rn
+               case when p_ordem = 'ultimo' then (x->>'ultimo_clique')::timestamptz end desc nulls last,
+               (x->>'criado_em')::timestamptz desc) rn
       from (
         select jsonb_build_object(
           'id', l.id, 'nome', l.nome, 'projeto', pr.slug,
@@ -340,7 +356,8 @@ begin
                                         and public.lnk_contavel(c.classe, c.classe_motivo)
                                       group by 1) s on s.d = g.d::date),
           'ultimo_clique', (select max(c.ts) from public.lnk_cliques c
-                            where c.link_id = l.id and c.classe = 'humano'),
+                            where c.link_id = l.id
+                              and public.lnk_contavel(c.classe, c.classe_motivo)),
           'sem_braco', not exists (select 1 from public.lnk_params p
                                    where p.link_id = l.id and lower(p.chave) = 'utm_content')
                        and not exists (select 1 from public.lnk_destinos d

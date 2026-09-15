@@ -1,3 +1,4 @@
+-- ⚠ Corrigida pela lnk_31 (gate de revisao 15/09/2026): este arquivo ja traz o texto final.
 -- =====================================================================
 -- lnk_28: editar / pausar / congelar / expirar, slug custom, historico,
 -- purge no KV, URL protegida. PRD Links HX v2 (15/09/2026), F1 (c).
@@ -368,7 +369,7 @@ begin
           url = d->>'url', rotulo = nullif(trim(coalesce(d->>'rotulo', '')), ''),
           peso = coalesce((d->>'peso')::int, peso),
           is_active = coalesce((d->>'ativo')::boolean, is_active),
-          ordem = v_i, updated_at = now()
+          ordem = v_i   -- sem updated_at: quem carimba e o lnk_tg_peso_mudou, so quando peso/estado/url mudam (revisao 15/09)
         where id = (d->>'id')::uuid and link_id = p_link_id
           and (url is distinct from d->>'url'
                or rotulo is distinct from nullif(trim(coalesce(d->>'rotulo', '')), '')
@@ -437,6 +438,11 @@ begin
     return jsonb_build_object('ok', false, 'erro', 'Estado: "ativo", "pausado" ou "congelado".');
   end if;
   select exists (select 1 from public.lnk_urls u where u.link_id = p_link_id and u.protegida) into v_prot;
+  -- sem destino de expirado, pausar joga o comprador na home do dominio: foi o incidente de 03-14/09
+  if p_estado = 'pausado' and v_prot and nullif(l.destino_expirado, '') is null then
+    return jsonb_build_object('ok', false, 'erro',
+      'Esse link tem URL protegida em produção e não tem destino de expirado configurado: pausar agora joga quem clicar na página do domínio. Configura o "destino quando expirar" antes de pausar.');
+  end if;
   if p_estado = 'pausado' and v_prot and not p_forcar then
     return jsonb_build_object('ok', false, 'precisa_forcar', true, 'erro',
       'Esse link tem URL protegida em produção (está colado num pop-up ou material fora do Send). Pausar tira isso do ar. Se for isso mesmo, confirma forçando.');

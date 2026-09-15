@@ -1,3 +1,5 @@
+-- ⚠ Substituida pela lnk_31 (gate 15/09): gente exclui ua_robo/asn, exige >= 5 IPs distintos
+--   (ou 0 = linha do Worker 1.1.0 sem ip_hash) e avisa fila de KV travada. Corpo vigente na lnk_31.
 -- =====================================================================
 -- lnk_30: vigia de 404 com gente. PRD Links HX v2 (15/09/2026), F1.
 --
