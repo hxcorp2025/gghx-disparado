@@ -33,3 +33,27 @@ begin
   end loop;
   raise notice 'lnk_36: % revogações', n;
 end $$;
+
+-- Sobras do default ANTIGO (EXECUTE via PUBLIC, proacl nulo): triggers lnk_tg_* e helpers puros
+-- sendflow_gkey / sendflow_tpl_*. Não expõem dado (trigger não é chamável por RPC; os helpers só
+-- transformam texto), mas o `revoke from anon` acima não cobre grant herdado de PUBLIC. Higiene:
+do $$
+declare r record; n int := 0;
+begin
+  for r in
+    select p.oid, p.proname, pg_get_function_identity_arguments(p.oid) as args
+      from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+     where ns.nspname = 'public' and (p.proname like 'lnk\_%' or p.proname like 'sendflow\_%')
+       and has_function_privilege('anon', p.oid, 'execute')
+       and p.proname not in ('lnk_edge_resolver', 'lnk_edge_clique', 'lnk_api_criar', 'lnk_api_ler', 'lnk_api_listar', 'lnk_api_editar')
+  loop
+    execute format('revoke execute on function public.%I(%s) from public, anon', r.proname, r.args);
+    n := n + 1;
+  end loop;
+  raise notice 'lnk_36 (public): % revogações', n;
+end $$;
+-- Conferência (deve devolver []): anon fora da allowlist
+-- select jsonb_agg(p.proname) from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+--  where ns.nspname = 'public' and (p.proname like 'lnk\_%' or p.proname like 'sendflow\_%')
+--    and has_function_privilege('anon', p.oid, 'execute')
+--    and p.proname not in ('lnk_edge_resolver','lnk_edge_clique','lnk_api_criar','lnk_api_ler','lnk_api_listar','lnk_api_editar');
