@@ -56,6 +56,8 @@ export type BlocoDisparo =
 // blocos null/[] = disparo de texto puro (comportamento original, intocado).
 // partidaEmS > 0 = partida agendada: os lotes entram com proximo_em no futuro e o worker
 // so pega depois — e a janela em que sendflowDisparoCancelar desfaz TUDO (estudo UX 24/08).
+// agendarPara (ISO) = disparo marcado pra dia e hora (5min a 7 dias; PRD 17/09, pedido do
+// Peterson). Quando vem preenchido, partidaEmS e ignorado no banco.
 export const sendflowDisparar = async (
   gids: string[],
   variacaoIds: number[],
@@ -64,16 +66,21 @@ export const sendflowDisparar = async (
   intervaloMax = 160,
   blocos: BlocoDisparo[] | null = null,
   partidaEmS = 0,
+  agendarPara: string | null = null,
 ) => {
-  const r = await rpc<SendflowDisparoResultado & { partida_em: string }>('sendflow_disparar', {
-    p_gids: gids,
-    p_variacao_ids: variacaoIds,
-    p_mencao: mencao,
-    p_intervalo_min: intervaloMin,
-    p_intervalo_max: intervaloMax,
-    p_blocos: blocos && blocos.length > 0 ? blocos : null,
-    p_partida_em_s: partidaEmS,
-  })
+  const r = await rpc<SendflowDisparoResultado & { partida_em: string; agendado_para: string | null }>(
+    'sendflow_disparar',
+    {
+      p_gids: gids,
+      p_variacao_ids: variacaoIds,
+      p_mencao: mencao,
+      p_intervalo_min: intervaloMin,
+      p_intervalo_max: intervaloMax,
+      p_blocos: blocos && blocos.length > 0 ? blocos : null,
+      p_partida_em_s: partidaEmS,
+      p_agendar_para: agendarPara,
+    },
+  )
   // mesmo cinto do exigirOk() do copyDb: nunca tratar {ok:false} como sucesso
   if (!r.ok) throw new Error('Não consegui enfileirar o disparo.')
   return r
@@ -90,6 +97,8 @@ export type LoteStatus = {
   variacao_id: number
   status: 'pending' | 'paused' | 'sending' | 'done' | 'error' | 'incerto' | 'cancelled'
   n_gids: number
+  /** grupos que sumiram entre agendar e enviar e cairam do lote na hora do envio */
+  n_removidos: number
   proximo_em: string | null
   sending_em: string | null
   concluido_em: string | null
@@ -116,11 +125,58 @@ export type DisparoStatus = {
     grupos_total: number
     grupos_feitos: number
   }
+  /** quando o worker pode pegar o 1o lote (verdade do motor; muda em retentativa) */
   partida_em: string | null
+  /** a hora que o operador marcou, quando o disparo foi agendado (nunca muda sozinha) */
+  agendado_para: string | null
 }
 
 export const sendflowDisparoStatus = (disparoId: string) =>
   rpc<DisparoStatus>('sendflow_disparo_status', { p_disparo: disparoId })
+
+// ===== Agendados (PRD 17/09) =====
+// Um disparo agendado nao depende mais do localStorage: a lista vem do banco, entao
+// ele aparece em qualquer maquina e sobrevive a fechar o navegador.
+
+export type DisparoSituacao =
+  | 'agendado' | 'armado' | 'pausado' | 'rodando' | 'entregue' | 'erro' | 'cancelado'
+
+export type DisparoResumo = {
+  disparo_id: string
+  situacao: DisparoSituacao
+  criado_em: string
+  criado_por: string | null
+  criado_por_nome: string | null
+  /** hora marcada pelo operador (null = disparo normal, de 60s) */
+  agendado_para: string | null
+  partida_em: string | null
+  /** o aviso de WhatsApp saiu? falha de aviso e silenciosa, entao a tela mostra */
+  aviso_partiu_ok: boolean
+  aviso_terminou_ok: boolean
+  resumo: {
+    total: number; pending: number; paused: number; sending: number
+    done: number; error: number; cancelled: number
+    grupos_total: number; grupos_feitos: number; grupos_removidos: number
+  }
+  mencao: boolean | null
+  intervalo_min: number
+  intervalo_max: number
+  blocos: number
+  campanhas: string[]
+  variacoes: { id: number; fila_id: number; idx: number; angulo: string | null; origem: string | null }[]
+  previa: string | null
+}
+
+export const sendflowDisparosListar = (dias = 7) =>
+  rpc<DisparoResumo[]>('sendflow_disparos_listar', { p_dias: dias })
+
+// Muda a hora de um disparo agendado. So vale enquanto NENHUM lote saiu: depois disso
+// o banco recusa e a saida e cancelar o que falta.
+export const sendflowDisparoReagendar = (disparoId: string, quandoISO: string) =>
+  rpc<{ ok: boolean; lotes?: number; agendado_para?: string; erro?: string }>(
+    'sendflow_disparo_reagendar',
+    { p_disparo: disparoId, p_quando: quandoISO },
+  )
 
 export const sendflowDisparoCancelar = (disparoId: string) =>
   rpc<{ ok: boolean; cancelados: number; ja_no_motor: number }>('sendflow_disparo_cancelar', { p_disparo: disparoId })

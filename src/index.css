@@ -388,6 +388,29 @@ td.quando { text-align: right; white-space: nowrap; font-variant-numeric: tabula
 .armado { text-align: center; padding: 26px 20px; }
 .armado .cd { font-family: var(--display); font-size: 52px; font-weight: 700; letter-spacing: -0.035em; line-height: 1; font-variant-numeric: tabular-nums; }
 
+/* ============================================================
+   AGENDAR DIA E HORA (PRD 17/09, pedido do Peterson)
+   cartão "Agendados" + escolha do horário na revisão
+   ============================================================ */
+/* a data ocupa o lugar da contagem regressiva: num disparo de amanhã, segundo não diz nada */
+.armado .cd.cd-data { font-size: 34px; }
+
+.agendados { max-width: 720px; border-color: var(--line2); }
+/* linha do agendado: hora à esquerda, o resto à direita — a hora é o que se procura na lista */
+.agrow { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 14px; padding: 13px 0; border-top: 1px solid var(--line); }
+.agrow:first-of-type { border-top: none; }
+.agwhen { display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
+.agwhen b { font-size: 13.5px; letter-spacing: -0.01em; }
+.agwhen .mut { font-size: 11.5px; }
+.agbody { min-width: 0; }
+.agprevia { font-size: 12.5px; color: var(--mut); margin: 6px 0 0; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 620px) { .agrow { grid-template-columns: 1fr; gap: 6px; } }
+
+/* escolha do "quando" dentro da revisão: dois caminhos, nunca os dois ligados */
+.quando-box { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.quando-campo { margin-top: 10px; }
+.quando-campo input[type='datetime-local'] { font-variant-numeric: tabular-nums; }
+
 /* progresso do disparo */
 .pbar { height: 8px; border-radius: 99px; background: var(--surface2); border: 1px solid var(--line); overflow: hidden; }
 .pbar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--brand), var(--brand-hover)); border-radius: 99px; transition: width 0.4s var(--curva); }

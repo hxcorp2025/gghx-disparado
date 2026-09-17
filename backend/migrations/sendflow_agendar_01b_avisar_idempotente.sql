@@ -1,0 +1,11 @@
+-- sendflow_agendar_01b (17/09/2026): sendflow_agendado_avisar recusa aviso repetido por conta própria.
+-- Antes, o dedup morava só no tick; uma chamada direta repetida mandava a mensagem de novo e só
+-- depois estourava no índice único (sendflow_disparo_aviso_ok_uq). Agora a função checa antes de
+-- montar/enviar e devolve {ok:false, erro:'ja avisado', dedup:true}. Resto idêntico ao 01.
+-- Texto integral da função: ver sendflow_agendar_01.sql §7 com o bloco abaixo logo após a validação do evento:
+--
+--   if exists (select 1 from sendflow_disparo_aviso a where a.disparo_id = p_disparo and a.evento = p_evento and a.ok) then
+--     return jsonb_build_object('ok', false, 'erro', 'ja avisado', 'dedup', true);
+--   end if;
+--
+-- ACL reaplicada: revoke public/anon/authenticated; grant service_role.

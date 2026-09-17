@@ -21,8 +21,15 @@ export const POSTHOG_HOST = 'https://us.i.posthog.com'
 
 // Flags de feature. Ligar quando o backend correspondente estiver no ar.
 export const FEATURES = {
-  // Agendamento: coluna scheduled_at + poller (cron gghx-agendador) ATIVOS desde 02/07.
-  agendamento: true,
+  // 🔴 DESLIGADO em 17/09/2026. Este agendamento era do WIZARD ANTIGO (motor próprio):
+  // o poller gghx_fire_scheduled chamava um webhook n8n DESATIVADO desde 11/08 e ainda
+  // pulava as guardas do motor Evolution (marcava a campanha como 'rodando' sem checar
+  // janela, teto do chip nem disparo concorrente). Nunca foi usado: scheduled_at está
+  // nulo em todas as campanhas. O cron 'gghx-agendador' (jobid 2) foi desligado junto
+  // (religar: select cron.alter_job(2, active := true) + voltar esta flag pra true).
+  // Agendar de verdade agora é na Mesa de Disparo, aba "Disparar cópias"
+  // (PRD_mesa_agendar_disparo_2026-09-17).
+  agendamento: false,
   // Multi-conta: só ligar depois de backend/multiconta.sql + motor parametrizado por conta.
   multiconta: false,
 } as const

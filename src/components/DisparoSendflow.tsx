@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Send, Users, AtSign, AlertTriangle, Check, Pause, Play, XCircle, Zap, Rocket, Pencil, RefreshCw, Archive,
+  CalendarClock, Eye,
 } from 'lucide-react'
 import type { CopyVariacao } from '../lib/copyDb'
 import {
   sendflowGruposVip, sendflowDisparar, sendflowGruposUltimoEnvio,
   sendflowDisparoStatus, sendflowDisparoCancelar, sendflowDisparoAgora,
   sendflowDisparoPausar, sendflowDisparoRetomar, sendflowAtualizarGrupos,
+  sendflowDisparosListar, sendflowDisparoReagendar,
 } from '../lib/sendflowDb'
-import type { SendflowGrupoVip, DisparoStatus, LoteStatus } from '../lib/sendflowDb'
+import type { SendflowGrupoVip, DisparoStatus, LoteStatus, DisparoResumo } from '../lib/sendflowDb'
 import { Modal } from './Modal'
 import { PhonePreview } from './PhonePreview'
 import { toast } from '../lib/toast'
@@ -30,6 +32,67 @@ const COOLDOWN_H = 4
 // entao na pratica a partida acontece ate ~1 min depois do zero.
 const PARTIDA_S = 60
 const LS_VIVO = 'gghx-disparo-vivo'
+
+// ===== Agendar com dia e hora (PRD 17/09, pedido do Peterson) =====
+// A janela e a mesma do banco: ele recusa fora disso, a tela avisa antes pra ninguem
+// tomar erro depois de revisar tudo.
+const AGENDA_MIN_MIN = 5
+const AGENDA_MAX_DIAS = 7
+// Fora disso a tela mostra aviso ambar, mas NAO bloqueia: quem decide a hora e o operador.
+const HORA_BOA_DE = 8
+const HORA_BOA_ATE = 22
+// Dois disparos marcados perto um do outro disputam o mesmo chip: o segundo so sai
+// quando o primeiro terminar de entregar. Avisar na hora de marcar evita a surpresa.
+const PERTO_MIN = 30
+
+// <input type="datetime-local"> fala no fuso do computador; o banco guarda timestamptz.
+// Estas duas funcoes sao a ponte, e sao a unica conversao de fuso da tela.
+function paraInput(d: Date) {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+function doInput(v: string): Date | null {
+  if (!v) return null
+  const d = new Date(v)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+// "hoje 17:00" / "amanha 12:00" / "sab, 20/09 17:00"
+function quandoLongo(iso: string) {
+  const d = new Date(iso)
+  const hoje = new Date()
+  const amanha = new Date(hoje)
+  amanha.setDate(hoje.getDate() + 1)
+  const hhmm = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  if (d.toDateString() === hoje.toDateString()) return `hoje ${hhmm}`
+  if (d.toDateString() === amanha.toDateString()) return `amanhã ${hhmm}`
+  const dia = d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })
+  return `${dia.replace('.', '')} ${hhmm}`
+}
+
+// "em 3h20" / "em 12 min" / "agora" — o quanto falta, em linguagem de gente
+function faltaPara(iso: string) {
+  const ms = new Date(iso).getTime() - Date.now()
+  if (ms <= 0) return 'agora'
+  const min = Math.round(ms / 60_000)
+  if (min < 60) return `em ${min} min`
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  if (h < 24) return m > 0 ? `em ${h}h${String(m).padStart(2, '0')}` : `em ${h}h`
+  return `em ${Math.round(h / 24)} dias`
+}
+
+const SITUACAO: Record<DisparoResumo['situacao'], { label: string; cls: string }> = {
+  agendado: { label: 'agendado', cls: 'b-agendado' },
+  armado: { label: 'armado', cls: 'b-agendado' },
+  // 'pausado' nasceu no gate: antes um disparo parado pela mao do operador aparecia como
+  // "rodando" e a tela escondia o "Mudar horário" de algo que nao estava saindo.
+  pausado: { label: 'pausado', cls: 'b-pausada' },
+  rodando: { label: 'indo pro motor', cls: 'b-rodando' },
+  entregue: { label: 'entregue ao motor', cls: 'b-concluida' },
+  erro: { label: 'terminou com erro', cls: 'b-erro' },
+  cancelado: { label: 'cancelado', cls: 'b-cancelada' },
+}
 
 const STATUS_LOTE: Record<LoteStatus['status'], { label: string; cls: string }> = {
   pending: { label: 'na fila', cls: 'b-agendado' },
@@ -89,6 +152,15 @@ export function DisparoSendflow({
 
   const [revisando, setRevisando] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  // agendar (PRD 17/09): quando vazio, o botao dispara em 60s como sempre
+  const [agendar, setAgendar] = useState(false)
+  const [quando, setQuando] = useState('')
+  const [agendados, setAgendados] = useState<DisparoResumo[]>([])
+  const [reagendandoId, setReagendandoId] = useState<string | null>(null)
+  const [reagendaQuando, setReagendaQuando] = useState('')
+  const [cancelandoId, setCancelandoId] = useState<string | null>(null)
+  // "Começar já" manda um disparo em massa AGORA: pede confirmação igual ao cancelar
+  const [comecarId, setComecarId] = useState<string | null>(null)
   const [vivoId, setVivoId] = useState<string | null>(null)
   const [st, setSt] = useState<DisparoStatus | null>(null)
   const [agora, setAgora] = useState(Date.now())
@@ -131,11 +203,19 @@ export function DisparoSendflow({
       .catch(() => {})
   }, [])
 
+  // a lista de disparos vem do BANCO: um agendado aparece em qualquer maquina e
+  // sobrevive a fechar o navegador (o localStorage segue so como atalho do vivo)
+  const carregarAgendados = useCallback(
+    () => sendflowDisparosListar(7).then(setAgendados).catch(() => {}),
+    [],
+  )
+
   useEffect(() => {
     sendflowGruposVip(null, true)
       .then(setGrupos)
       .catch((e) => setErroGrupos(e instanceof Error ? e.message : 'Não consegui carregar os grupos.'))
     carregarCooldown()
+    carregarAgendados()
     // se um disparo ficou vivo (refresh no meio), volta pro acompanhamento
     const salvo = localStorage.getItem(LS_VIVO)
     if (salvo) {
@@ -166,6 +246,20 @@ export function DisparoSendflow({
       clearInterval(t5)
     }
   }, [vivoId, st])
+
+  // enquanto houver disparo marcado ou andando, a lista se atualiza sozinha (30s).
+  // Sem nada aberto, os timers param: a tela nao fica batendo no banco a toa.
+  const temAberto = agendados.some(
+    (d) => d.situacao === 'agendado' || d.situacao === 'armado' || d.situacao === 'pausado' || d.situacao === 'rodando',
+  )
+  useEffect(() => {
+    if (!temAberto) return
+    const t = setInterval(() => {
+      carregarAgendados()
+      setAgora(Date.now())
+    }, 30_000)
+    return () => clearInterval(t)
+  }, [temAberto, carregarAgendados])
 
   // "mesa" = o que "Todas VIP" marca (SO o projeto); "visiveis" = o que a lista mostra.
   // Revelar outras campanhas mostra as linhas e as pills ambar, mas nunca muda o que o
@@ -231,6 +325,53 @@ export function DisparoSendflow({
   const erroSequencia = sequenciaValida(blocos)
   const nMidias = blocos.filter((b) => b.tipo === 'midia').length
   const podeRevisar = selecionadas.length > 0 && gruposSel.length > 0 && !erroSequencia
+
+  // ===== hora do agendamento: sugestao, atalhos e os dois avisos =====
+  const quandoData = useMemo(() => doInput(quando), [quando])
+
+  // atalhos do dia a dia do Peterson (o pico dele e 17h; 12h e o outro horario forte).
+  // "hoje" some quando ja passou: atalho que nao da pra usar e so ruido.
+  const atalhos = useMemo(() => {
+    const monta = (diasAFrente: number, hora: number) => {
+      const d = new Date()
+      d.setDate(d.getDate() + diasAFrente)
+      d.setHours(hora, 0, 0, 0)
+      return d
+    }
+    const cabe = (d: Date) => d.getTime() > Date.now() + AGENDA_MIN_MIN * 60_000
+    const lista = [
+      { label: 'hoje 17h', data: () => monta(0, 17) },
+      { label: 'amanhã 12h', data: () => monta(1, 12) },
+      { label: 'amanhã 17h', data: () => monta(1, 17) },
+    ]
+    return lista.filter((a) => cabe(a.data()))
+  }, [agora])
+
+  const avisoHora = useMemo(() => {
+    if (!quandoData) return ''
+    const h = quandoData.getHours()
+    if (h < HORA_BOA_DE || h >= HORA_BOA_ATE) {
+      return `${String(h).padStart(2, '0')}h está fora do horário que a operação costuma usar (${HORA_BOA_DE}h às ${HORA_BOA_ATE}h). Dá pra agendar assim mesmo, só confere se é isso.`
+    }
+    return ''
+  }, [quandoData])
+
+  // dois disparos marcados perto disputam o mesmo chip: o segundo espera o primeiro
+  const avisoPerto = useMemo(() => {
+    if (!quandoData) return ''
+    const perto = agendados.filter((d) => {
+      if (!d.agendado_para) return false
+      if (d.situacao !== 'agendado' && d.situacao !== 'armado') return false
+      return Math.abs(new Date(d.agendado_para).getTime() - quandoData.getTime()) < PERTO_MIN * 60_000
+    })
+    if (perto.length === 0) return ''
+    return `Já tem ${perto.length} disparo marcado por perto (${perto.map((d) => quandoLongo(d.agendado_para as string)).join(', ')}). Um número manda um lote por vez, então o segundo só sai quando o primeiro terminar de entregar.`
+  }, [quandoData, agendados])
+
+  // sugestao de hora ao abrir o campo: o proximo horario de pico que ainda cabe
+  function sugestaoHora() {
+    return atalhos.length > 0 ? atalhos[0].data() : new Date(Date.now() + 60 * 60_000)
+  }
   const porVariacao = Math.ceil(gruposSel.length / Math.max(1, selecionadas.length))
   const previewVar =
     selecionadas.find((v) => v.id === previewVarId) ?? selecionadas[0] ?? null
@@ -279,26 +420,119 @@ export function DisparoSendflow({
 
   async function armar() {
     if (enviando || !podeRevisar) return
+    // agendado: valida a hora ANTES de mandar, com a mesma regua do banco
+    let quandoISO: string | null = null
+    if (agendar) {
+      const d = doInput(quando)
+      if (!d) return toast('Escolhe o dia e a hora do disparo', true)
+      if (d.getTime() < Date.now() + AGENDA_MIN_MIN * 60_000) {
+        return toast(`A hora tem que ser pelo menos ${AGENDA_MIN_MIN} minutos à frente`, true)
+      }
+      if (d.getTime() > Date.now() + AGENDA_MAX_DIAS * 86_400_000) {
+        return toast(`Dá pra agendar no máximo ${AGENDA_MAX_DIAS} dias à frente`, true)
+      }
+      quandoISO = d.toISOString()
+    }
     setEnviando(true)
     try {
       const r = await sendflowDisparar(
         gruposSel.map((g) => g.gid),
         selecionadas.map((v) => v.id),
         mencao, RITMOS[ritmo].min, RITMOS[ritmo].max,
-        blocosParaRpc(blocos), PARTIDA_S,
+        blocosParaRpc(blocos), quandoISO ? 0 : PARTIDA_S, quandoISO,
       )
       setRevisando(false)
-      setVivoId(r.disparo_id)
-      localStorage.setItem(LS_VIVO, r.disparo_id)
-      const s = await sendflowDisparoStatus(r.disparo_id).catch(() => null)
-      if (s) setSt(s)
       const extra = r.ignorados_n ? ` · ${r.ignorados_n} grupos ignorados (sumiram)` : ''
-      toast(`Disparo armado: parte em ${PARTIDA_S}s${extra}`)
+      if (quandoISO) {
+        // agendado nao abre o painel de contagem: ele vive no cartao "Agendados"
+        // e a mesa fica limpa pro proximo (o texto revisado ja foi congelado no banco).
+        await carregarAgendados()
+        setAgendar(false)
+        setQuando('')
+        resetMesa()
+        toast(`Disparo agendado para ${quandoLongo(quandoISO)}${extra}`)
+      } else {
+        setVivoId(r.disparo_id)
+        localStorage.setItem(LS_VIVO, r.disparo_id)
+        const s = await sendflowDisparoStatus(r.disparo_id).catch(() => null)
+        if (s) setSt(s)
+        toast(`Disparo armado: parte em ${PARTIDA_S}s${extra}`)
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Falhou', true)
     } finally {
       setEnviando(false)
     }
+  }
+
+  // ===== acoes do cartao "Agendados" =====
+  async function reagendar(id: string) {
+    const d = doInput(reagendaQuando)
+    if (!d) return toast('Escolhe a hora nova', true)
+    if (d.getTime() < Date.now() + AGENDA_MIN_MIN * 60_000) {
+      return toast(`A hora tem que ser pelo menos ${AGENDA_MIN_MIN} minutos à frente`, true)
+    }
+    if (d.getTime() > Date.now() + AGENDA_MAX_DIAS * 86_400_000) {
+      return toast(`Dá pra agendar no máximo ${AGENDA_MAX_DIAS} dias à frente`, true)
+    }
+    if (agindo) return
+    setAgindo(true)
+    try {
+      const r = await sendflowDisparoReagendar(id, d.toISOString())
+      // o banco recusa se algum lote ja saiu: a tela conta a verdade dele, nao a minha
+      if (!r.ok) toast(r.erro ?? 'Não consegui mudar a hora', true)
+      else toast(`Disparo remarcado para ${quandoLongo(d.toISOString())}`)
+      setReagendandoId(null)
+      setReagendaQuando('')
+      await carregarAgendados()
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Falhou', true)
+    } finally {
+      setAgindo(false)
+    }
+  }
+
+  async function acaoAgendado(fn: () => Promise<unknown>, msg: string) {
+    if (agindo) return
+    setAgindo(true)
+    try {
+      await fn()
+      toast(msg)
+      await carregarAgendados()
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Falhou', true)
+    } finally {
+      setAgindo(false)
+      setCancelandoId(null)
+      setComecarId(null)
+    }
+  }
+
+  async function cancelarAgendado(id: string) {
+    if (agindo) return
+    setAgindo(true)
+    try {
+      const r = await sendflowDisparoCancelar(id)
+      if (r.ja_no_motor > 0) {
+        toast(`${r.cancelados} lotes cancelados, ${r.ja_no_motor} já estavam no motor e vão até o fim`, true)
+      } else {
+        toast('Disparo cancelado, nada foi enviado')
+      }
+      await carregarAgendados()
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Falhou', true)
+    } finally {
+      setAgindo(false)
+      setCancelandoId(null)
+    }
+  }
+
+  async function acompanhar(id: string) {
+    const s = await sendflowDisparoStatus(id).catch(() => null)
+    if (!s) return toast('Não consegui abrir esse disparo', true)
+    setVivoId(id)
+    setSt(s)
+    localStorage.setItem(LS_VIVO, id)
   }
 
   async function acao(fn: () => Promise<unknown>, msg: string) {
@@ -347,6 +581,168 @@ export function DisparoSendflow({
     localStorage.removeItem(LS_VIVO)
     if (zerarMesa) resetMesa() // mencao/ritmo/midia NUNCA vazam pro proximo disparo
     carregarCooldown() // o disparo que acabou de sair conta pro cooldown do proximo
+    carregarAgendados()
+  }
+
+  // ===== cartao "Agendados" =====
+  // Fica visivel na mesa E no painel vivo: disparo marcado pra amanha nao pode
+  // depender de o Peterson lembrar que marcou.
+  const abertos = agendados.filter(
+    (d) => d.situacao === 'agendado' || d.situacao === 'armado' || d.situacao === 'pausado' || d.situacao === 'rodando',
+  )
+  // o disparo que ja esta aberto no painel vivo nao se repete aqui
+  const marcados = abertos.filter((d) => d.agendado_para && d.disparo_id !== vivoId)
+
+  function cartaoAgendados() {
+    if (marcados.length === 0) return null
+    return (
+      <div className="card agendados">
+        <div className="row" style={{ gap: 8, marginBottom: 4 }}>
+          <CalendarClock size={17} style={{ color: 'var(--accent)' }} />
+          <h3 style={{ margin: 0 }}>
+            Agendados ({marcados.length})
+          </h3>
+        </div>
+        <p className="mut" style={{ fontSize: 12.5, marginTop: 0 }}>
+          A mensagem já está guardada do jeito que você revisou. Até a hora marcada dá pra mudar o
+          horário, começar na hora ou cancelar. Depois que um lote entra no motor do SendFlow, ele
+          vai até o fim.
+        </p>
+        {marcados.map((d) => {
+          const r = d.resumo
+          const passou = new Date(d.agendado_para as string).getTime() <= Date.now()
+          const mexivel = d.situacao === 'agendado' || d.situacao === 'armado'
+          return (
+            <div key={d.disparo_id} className="agrow">
+              <div className="agwhen">
+                <b>{quandoLongo(d.agendado_para as string)}</b>
+                <span className="mut">{passou ? 'saindo agora' : faltaPara(d.agendado_para as string)}</span>
+              </div>
+              <div className="agbody">
+                <div className="row" style={{ gap: 7 }}>
+                  <span className={`badge ${SITUACAO[d.situacao].cls}`}>{SITUACAO[d.situacao].label}</span>
+                  <span className="mut" style={{ fontSize: 12.5 }}>
+                    <b style={{ color: 'var(--txt)' }}>{r.grupos_total}</b> grupos · {d.campanhas.join(', ')}
+                    {d.variacoes.length > 1 ? ` · ${d.variacoes.length} variações` : ''}
+                    {d.blocos > 0 ? ` · ${d.blocos} blocos com mídia` : ''}
+                    {d.mencao ? ' · menção LIGADA' : ''}
+                  </span>
+                </div>
+                {d.previa && <p className="agprevia">{d.previa}</p>}
+                {d.situacao === 'rodando' && (
+                  <p className="mut" style={{ fontSize: 12, margin: '4px 0 0' }}>
+                    {r.grupos_feitos} de {r.grupos_total} grupos entregues ao motor
+                  </p>
+                )}
+                {r.grupos_removidos > 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--amber)', margin: '4px 0 0' }}>
+                    {r.grupos_removidos} grupo{r.grupos_removidos > 1 ? 's sumiram' : ' sumiu'} depois de
+                    agendado e saiu do envio
+                  </p>
+                )}
+                {d.situacao === 'pausado' && (
+                  <p style={{ fontSize: 12, color: 'var(--amber)', margin: '4px 0 0' }}>
+                    Parado. Retomar devolve ele para a hora marcada, não dispara agora.
+                  </p>
+                )}
+                {/* aviso que nao sai e falha silenciosa: quem agendou precisa ver na tela */}
+                {d.situacao === 'rodando' && !d.aviso_partiu_ok && (
+                  <p style={{ fontSize: 12, color: 'var(--amber)', margin: '4px 0 0' }}>
+                    O aviso no grupo Logs SendHX ainda não saiu. O disparo segue normal.
+                  </p>
+                )}
+                {reagendandoId === d.disparo_id ? (
+                  <div className="row" style={{ gap: 8, marginTop: 8 }}>
+                    <input
+                      id={`reagenda-${d.disparo_id}`}
+                      type="datetime-local"
+                      value={reagendaQuando}
+                      min={paraInput(new Date(Date.now() + AGENDA_MIN_MIN * 60_000))}
+                      max={paraInput(new Date(Date.now() + AGENDA_MAX_DIAS * 86_400_000))}
+                      onChange={(e) => setReagendaQuando(e.target.value)}
+                    />
+                    <button className="btn sm" disabled={agindo} onClick={() => reagendar(d.disparo_id)}>
+                      Salvar hora
+                    </button>
+                    <button className="btn sm ghost" onClick={() => { setReagendandoId(null); setReagendaQuando('') }}>
+                      Voltar
+                    </button>
+                  </div>
+                ) : comecarId === d.disparo_id ? (
+                  <div className="row" style={{ gap: 6, marginTop: 8 }}>
+                    <span className="mut" style={{ fontSize: 12.5 }}>
+                      Sai agora em {r.grupos_total} grupos, sem esperar a hora marcada?
+                    </span>
+                    <button
+                      className="btn sm"
+                      disabled={agindo}
+                      onClick={() => {
+                        setComecarId(null)
+                        acaoAgendado(() => sendflowDisparoAgora(d.disparo_id), 'Liberado, o motor pega no próximo minuto')
+                      }}
+                    >
+                      Sim, começar
+                    </button>
+                    <button className="btn sm ghost" onClick={() => setComecarId(null)}>Voltar</button>
+                  </div>
+                ) : cancelandoId === d.disparo_id ? (
+                  <div className="row" style={{ gap: 6, marginTop: 8 }}>
+                    <span className="mut" style={{ fontSize: 12.5 }}>
+                      Cancela o disparo de {quandoLongo(d.agendado_para as string)}?
+                    </span>
+                    <button className="btn sm danger" disabled={agindo} onClick={() => cancelarAgendado(d.disparo_id)}>
+                      Sim, cancelar
+                    </button>
+                    <button className="btn sm ghost" onClick={() => setCancelandoId(null)}>Voltar</button>
+                  </div>
+                ) : (
+                  <div className="row" style={{ gap: 8, marginTop: 8 }}>
+                    {mexivel && (
+                      <>
+                        <button
+                          className="btn sm ghost"
+                          disabled={agindo}
+                          onClick={() => {
+                            setReagendandoId(d.disparo_id)
+                            setReagendaQuando(paraInput(new Date(d.agendado_para as string)))
+                          }}
+                        >
+                          <CalendarClock size={13} /> Mudar horário
+                        </button>
+                        <button
+                          className="btn sm ghost"
+                          disabled={agindo}
+                          onClick={() => setComecarId(d.disparo_id)}
+                        >
+                          <Zap size={13} /> Começar já
+                        </button>
+                      </>
+                    )}
+                    {d.situacao === 'pausado' && (
+                      <button
+                        className="btn sm ghost"
+                        disabled={agindo}
+                        onClick={() => acaoAgendado(() => sendflowDisparoRetomar(d.disparo_id), 'Retomado para a hora marcada')}
+                      >
+                        <Play size={13} /> Retomar
+                      </button>
+                    )}
+                    <button className="btn sm ghost" disabled={agindo} onClick={() => acompanhar(d.disparo_id)}>
+                      <Eye size={13} /> Acompanhar
+                    </button>
+                    {r.pending + r.paused > 0 && (
+                      <button className="btn sm ghost red" disabled={agindo} onClick={() => setCancelandoId(d.disparo_id)}>
+                        <XCircle size={13} /> Cancelar
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
   }
 
   // sem copy aprovada nao ha o que disparar
@@ -355,23 +751,60 @@ export function DisparoSendflow({
   // ===================== PAINEL VIVO (armado / andamento / terminou) =====================
   if (vivoId && !st) {
     return (
-      <div className="card" style={{ borderColor: 'var(--accent)', maxWidth: 720 }}>
-        <p className="mut" style={{ margin: 0 }}>
-          <span className="spin" /> Carregando o disparo…
-        </p>
-      </div>
+      <>
+        {cartaoAgendados()}
+        <div className="card" style={{ borderColor: 'var(--accent)', maxWidth: 720 }}>
+          <p className="mut" style={{ margin: 0 }}>
+            <span className="spin" /> Carregando o disparo…
+          </p>
+        </div>
+      </>
     )
   }
   if (vivoId && st) {
     const r = st.resumo
     const terminou = r.total > 0 && r.pending + r.paused + r.sending === 0
+    // num disparo marcado, a contagem regressiva grande nao faz sentido (pode faltar
+    // um dia): quem manda na tela e a hora marcada, nao o relogio de segundos.
+    const marcado = st.agendado_para
     const partidaMs = st.partida_em ? new Date(st.partida_em).getTime() : null
     const faltam = partidaMs ? Math.max(0, Math.ceil((partidaMs - agora) / 1000)) : 0
-    const armado = !terminou && r.done + r.sending + r.error === 0 && faltam > 0
+    const armado = !terminou && r.done + r.sending + r.error === 0 && faltam > 0 && !marcado
+    const esperandoHora = !terminou && r.done + r.sending + r.error === 0 && faltam > 0 && !!marcado
     const pct = r.grupos_total > 0 ? Math.round((r.grupos_feitos / r.grupos_total) * 100) : 0
 
     return (
+      <>
+      {cartaoAgendados()}
       <div className="card" style={{ borderColor: 'var(--accent)', maxWidth: 720 }}>
+        {esperandoHora && (
+          <div className="armado">
+            <p className="mut" style={{ margin: '0 0 6px', fontSize: 13 }}>Disparo marcado para</p>
+            <div className="cd cd-data">{quandoLongo(marcado)}</div>
+            <p className="mut" style={{ fontSize: 12.5, margin: '10px auto 18px', maxWidth: 420 }}>
+              {faltaPara(marcado)} · {r.total} lotes ·{' '}
+              <b style={{ color: 'var(--txt)' }}>{r.grupos_total} grupos</b>. A mensagem já está
+              guardada. Até a hora dá pra cancelar tudo.
+            </p>
+            <div className="row" style={{ justifyContent: 'center' }}>
+              <button
+                className="btn"
+                disabled={agindo}
+                onClick={() => acao(() => sendflowDisparoAgora(vivoId), 'Liberado, o motor pega no próximo minuto')}
+              >
+                <Zap size={15} /> Começar já
+              </button>
+              <button className="btn ghost" disabled={agindo} onClick={() => encerrarVivo(false)}>
+                Voltar pra mesa
+              </button>
+              <button className="btn ghost red" disabled={agindo} onClick={cancelarArmado}>
+                <XCircle size={15} /> Cancelar disparo
+              </button>
+            </div>
+          </div>
+        )}
+        {!esperandoHora && (
+        <>
         {armado ? (
           <div className="armado">
             <p className="mut" style={{ margin: '0 0 6px', fontSize: 13 }}>
@@ -484,12 +917,17 @@ export function DisparoSendflow({
             </div>
           </>
         )}
+        </>
+        )}
       </div>
+      </>
     )
   }
 
   // ===================== A MESA (4 cartões + celular) =====================
   return (
+    <>
+    {cartaoAgendados()}
     <div className="mesa">
       <div className="mesa-main">
         {/* 1 · Mensagem */}
@@ -717,7 +1155,12 @@ export function DisparoSendflow({
             </div>
             <p className="mut" style={{ fontSize: 12.5, marginBottom: 0 }}>
               Cada variação pega ~{porVariacao} grupos, {RITMOS[ritmo].sub} entre mensagens, uma
-              variação por número de cada vez. A partida é em {PARTIDA_S}s e dá pra cancelar até lá.
+              variação por número de cada vez.{' '}
+              {agendar
+                ? quandoData
+                  ? `Sai ${quandoLongo(quandoData.toISOString())} e dá pra cancelar até lá.`
+                  : 'Escolhe o dia e a hora aqui embaixo.'
+                : `A partida é em ${PARTIDA_S}s e dá pra cancelar até lá.`}
             </p>
             {gruposSelFora.length > 0 && (
               <p style={{ fontSize: 12.5, color: 'var(--amber)', margin: '8px 0 0' }}>
@@ -766,9 +1209,70 @@ export function DisparoSendflow({
             </div>
           ))}
 
+          {/* quando sai: agora (60s) ou dia e hora marcados (pedido do Peterson, 17/09) */}
+          <div className="quando-box">
+            <div className="row" style={{ gap: 8 }}>
+              <button
+                type="button"
+                className={'btn sm ' + (agendar ? 'ghost' : '')}
+                onClick={() => setAgendar(false)}
+              >
+                <Send size={13} /> Disparar em {PARTIDA_S}s
+              </button>
+              <button
+                type="button"
+                className={'btn sm ' + (agendar ? '' : 'ghost')}
+                onClick={() => {
+                  setAgendar(true)
+                  if (!quando) setQuando(paraInput(sugestaoHora()))
+                }}
+              >
+                <CalendarClock size={13} /> Agendar dia e hora
+              </button>
+            </div>
+            {agendar && (
+              <div className="quando-campo">
+                <div className="row" style={{ gap: 8 }}>
+                  <input
+                    id="agenda-quando"
+                    type="datetime-local"
+                    value={quando}
+                    min={paraInput(new Date(Date.now() + AGENDA_MIN_MIN * 60_000))}
+                    max={paraInput(new Date(Date.now() + AGENDA_MAX_DIAS * 86_400_000))}
+                    onChange={(e) => setQuando(e.target.value)}
+                  />
+                  {atalhos.map((a) => (
+                    <button key={a.label} type="button" className="btn sm ghost"
+                      onClick={() => setQuando(paraInput(a.data()))}>
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+                {quandoData && (
+                  <p className="mut" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
+                    Sai <b style={{ color: 'var(--txt)' }}>{quandoLongo(quandoData.toISOString())}</b>,{' '}
+                    {faltaPara(quandoData.toISOString())}. A mensagem fica guardada do jeito que está
+                    aqui: se editar a copy depois, este disparo não muda.
+                  </p>
+                )}
+                {avisoHora && (
+                  <p style={{ fontSize: 12.5, color: 'var(--amber)', margin: '6px 0 0' }}>⚠ {avisoHora}</p>
+                )}
+                {avisoPerto && (
+                  <p style={{ fontSize: 12.5, color: 'var(--amber)', margin: '6px 0 0' }}>⚠ {avisoPerto}</p>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="row" style={{ marginTop: 14 }}>
-            <button className="btn" disabled={enviando} onClick={armar}>
-              <Send size={15} /> {enviando ? 'Armando…' : `Disparar em ${PARTIDA_S}s`}
+            <button id="cta-disparo" className="btn" disabled={enviando || (agendar && !quandoData)} onClick={armar}>
+              {agendar ? <CalendarClock size={15} /> : <Send size={15} />}{' '}
+              {enviando
+                ? 'Enviando pra fila…'
+                : agendar
+                  ? quandoData ? `Agendar para ${quandoLongo(quandoData.toISOString())}` : 'Escolhe o dia e a hora'
+                  : `Disparar em ${PARTIDA_S}s`}
             </button>
             <button className="btn ghost" disabled={enviando} onClick={() => setRevisando(false)}>
               Voltar e ajustar
@@ -777,5 +1281,6 @@ export function DisparoSendflow({
         </Modal>
       )}
     </div>
+    </>
   )
 }

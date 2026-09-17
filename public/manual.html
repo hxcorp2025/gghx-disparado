@@ -76,6 +76,7 @@
   <a href="#grupos">Grupos e os que são pulados sozinho</a>
   <a href="#copy">Copy com IA</a>
   <a href="#disparo">Novo disparo e Disparos</a>
+  <a href="#agendar">Agendar um disparo para dia e hora</a>
   <a href="#links">Links: URL curta, QR e o que aconteceu com cada link</a>
   <a href="#ferramentas">Ferramentas</a>
   <a href="#travou">Quando algo não sai: por onde olhar</a>
@@ -221,6 +222,43 @@
 <p>
   Grupo <b>pulado</b> não é falha: é grupo sem lista de participantes lida, ou grupo queimado.
   Dá pra reenviar só nos pulados depois, pelo botão da tela de detalhe.
+</p>
+
+<h2 id="agendar">Agendar um disparo para dia e hora</h2>
+<p>
+  Na aba <b>Disparar cópias</b>, monte o disparo como sempre (copy, sequência, alvo, ritmo) e clique
+  em <b>Revisar disparo</b>. Na revisão, além de <b>Disparar em 60s</b>, agora existe
+  <b>Agendar dia e hora</b>.
+</p>
+<ul>
+  <li>Escolha a data no campo ou use os atalhos (<b>hoje 17h</b>, <b>amanhã 12h</b>, <b>amanhã 17h</b>).
+      O atalho some quando o horário já passou.</li>
+  <li>Dá pra marcar de <b>5 minutos</b> até <b>7 dias</b> à frente.</li>
+  <li>A mensagem fica <b>guardada do jeito que você revisou</b>. Se você editar a copy depois, o
+      disparo agendado <b>não muda</b>. Para trocar o texto, cancele e agende de novo.</li>
+</ul>
+<p>
+  Depois de agendar, o disparo aparece no cartão <b>Agendados</b>, no topo da aba. Ele vem do banco:
+  aparece em qualquer computador e continua lá se você fechar o navegador.
+</p>
+<table>
+  <tr><th>No cartão Agendados</th><th>O que faz</th></tr>
+  <tr><td>Mudar horário</td><td>Remarca. Só funciona enquanto <b>nenhum lote saiu</b>.</td></tr>
+  <tr><td>Começar já</td><td>Não espera a hora. O motor pega no próximo minuto.</td></tr>
+  <tr><td>Acompanhar</td><td>Abre o painel com os lotes, igual ao disparo normal.</td></tr>
+  <tr><td>Cancelar</td><td>Derruba o que ainda não saiu. Lote que já entrou no motor vai até o fim.</td></tr>
+</table>
+<p>
+  Dois avisos aparecem na hora de marcar, e <b>nenhum dos dois bloqueia</b>: quando o horário está
+  fora da faixa de 8h às 22h, e quando já existe outro disparo marcado a menos de 30 minutos dali.
+  O segundo importa por causa do chip: <b>um número manda um lote por vez</b>, então o segundo
+  disparo só começa quando o primeiro terminar de entregar.
+</p>
+<p>
+  Na hora marcada o disparo sai sozinho, e você <b>não precisa estar na frente do computador</b>.
+  Chegam duas mensagens no grupo <b>Logs SendHX</b>: uma quando ele parte e outra quando termina,
+  com quantos grupos foram. Grupo que sumiu entre o agendamento e o envio (banido ou excluído no
+  SendFlow) <b>sai do disparo sozinho</b> e é contado no aviso.
 </p>
 
 <h2 id="links">Links: URL curta, QR e o que aconteceu com cada link</h2>
