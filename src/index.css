@@ -395,7 +395,7 @@ td.quando { text-align: right; white-space: nowrap; font-variant-numeric: tabula
 /* a data ocupa o lugar da contagem regressiva: num disparo de amanhã, segundo não diz nada */
 .armado .cd.cd-data { font-size: 34px; }
 
-.agendados { max-width: 720px; border-color: var(--line2); }
+.agendados { max-width: 720px; border-color: var(--line2); margin-bottom: 14px; }
 /* linha do agendado: hora à esquerda, o resto à direita — a hora é o que se procura na lista */
 .agrow { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 14px; padding: 13px 0; border-top: 1px solid var(--line); }
 .agrow:first-of-type { border-top: none; }
@@ -409,7 +409,8 @@ td.quando { text-align: right; white-space: nowrap; font-variant-numeric: tabula
 /* escolha do "quando" dentro da revisão: dois caminhos, nunca os dois ligados */
 .quando-box { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .quando-campo { margin-top: 10px; }
-.quando-campo input[type='datetime-local'] { font-variant-numeric: tabular-nums; }
+.quando-campo label { display: block; margin-bottom: 7px; font-weight: 550; font-size: 13px; color: var(--txt); }
+.quando-campo input[type='datetime-local'] { width: auto; max-width: 230px; font-variant-numeric: tabular-nums; }
 
 /* progresso do disparo */
 .pbar { height: 8px; border-radius: 99px; background: var(--surface2); border: 1px solid var(--line); overflow: hidden; }
