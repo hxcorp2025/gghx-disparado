@@ -1,0 +1,25 @@
+-- sendflow_agendar_03 (17/09/2026): a guarda das 6h congelava o disparo EM SILENCIO.
+-- Os lotes viravam 'paused', entao partiu=false e terminou exige partiu: nenhuma mensagem saia.
+-- O Peterson so descobriria abrindo o painel, que e justamente o que a feature existe pra evitar.
+--
+-- O que entrou (obrigatorias da rodada 2 do gate):
+--  1. evento novo 'atrasado' no CHECK de sendflow_disparo_aviso;
+--  2. ramo de mensagem "CONGELADO" em sendflow_agendado_avisar, dizendo que NADA foi enviado
+--     e o que fazer (Retomar, Mudar horario, Cancelar);
+--  3. sendflow_agendado_avisos_tick captura os congelados com
+--     `with congelados as (update ... returning disparo_id)` e avisa um por um, com o mesmo
+--     dedup por (disparo, evento, ok) e o mesmo teto de 60 falhas reais de HTTP;
+--  4. o ramo "NAO partiu" ganhou o carimbo de atraso e "Agendado por".
+-- Mais a guarda da sugestao 2 da rodada 3: coalesce(d.agendado_para, now()) no calculo das horas
+-- de atraso. Sem ela, um agendado_para nulo faria o concat inteiro virar NULL, o insert estourar
+-- no `texto not null` e DERRUBAR a transacao do tick, desfazendo o congelamento e os avisos
+-- daquele minuto. Hoje e inalcancavel (o UPDATE exige agendado_para not null), mas custa 1 linha.
+--
+-- O texto aplicado em producao esta no banco; este arquivo e o registro versionado.
+-- Rollback: select def from sendflow_fn_backup where lote = 'agendar_03' (refazer revoke/grant).
+--
+-- Conferencia rapida do que esta vivo:
+--   select pg_get_functiondef('public.sendflow_agendado_avisar(uuid,text,text)'::regprocedure);
+--   select pg_get_functiondef('public.sendflow_agendado_avisos_tick()'::regprocedure);
+--   select pg_get_constraintdef(oid) from pg_constraint
+--    where conname = 'sendflow_disparo_aviso_evento_check';
