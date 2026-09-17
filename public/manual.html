@@ -247,7 +247,17 @@
   <tr><td>Começar já</td><td>Não espera a hora. O motor pega no próximo minuto.</td></tr>
   <tr><td>Acompanhar</td><td>Abre o painel com os lotes, igual ao disparo normal.</td></tr>
   <tr><td>Cancelar</td><td>Derruba o que ainda não saiu. Lote que já entrou no motor vai até o fim.</td></tr>
+  <tr><td>Retomar</td><td>Aparece quando o disparo está parado. Devolve ele para a hora marcada.</td></tr>
+  <tr><td>Retomar e disparar agora</td><td>Aparece quando o disparo travou e o app pausou sozinho. A hora marcada já passou, então ele manda no próximo minuto. Pede confirmação.</td></tr>
 </table>
+<p>
+  <b>Se um disparo agendado não conseguir começar em até 6 horas depois da hora marcada</b> (chip
+  ocupado o tempo todo, SendFlow recusando, internet fora), o app <b>pausa ele sozinho</b> e não
+  manda nada. Isso é de propósito: é melhor não sair do que sair de madrugada com a mensagem de
+  ontem. Nesse caso chega um aviso no grupo <b>Logs SendHX</b> dizendo que o disparo foi congelado e
+  que nada foi enviado, e no cartão ele aparece como <b>"pausado, esperando você"</b>. Aí você
+  decide: Retomar e disparar agora, ou Cancelar.
+</p>
 <p>
   Dois avisos aparecem na hora de marcar, e <b>nenhum dos dois bloqueia</b>: quando o horário está
   fora da faixa de 8h às 22h, e quando já existe outro disparo marcado a menos de 30 minutos dali.

@@ -695,7 +695,7 @@ export function DisparoSendflow({
                   <span className="mut" style={{ fontSize: 12.5 }}>
                     <b style={{ color: 'var(--txt)' }}>{r.grupos_total}</b> grupos · {d.campanhas.join(', ')}
                     {d.variacoes.length > 1 ? ` · ${d.variacoes.length} variações` : ''}
-                    {d.blocos > 1 ? ` · ${d.blocos - 1} mídia${d.blocos > 2 ? 's' : ''} + copy` : ''}
+                    {d.blocos > 0 ? ` · ${d.blocos} bloco${d.blocos > 1 ? 's' : ''}` : ''}
                     {d.mencao ? ' · menção LIGADA' : ''}
                   </span>
                 </div>
@@ -727,7 +727,9 @@ export function DisparoSendflow({
                   </p>
                 )}
                 {reagendandoId === d.disparo_id ? (
-                  <div className="row" style={{ gap: 8, marginTop: 8 }}>
+                  <div className="quando-campo" style={{ marginTop: 8 }}>
+                    <label htmlFor={`reagenda-${d.disparo_id}`}>Nova hora do disparo</label>
+                    <div className="row" style={{ gap: 8 }}>
                     <input
                       id={`reagenda-${d.disparo_id}`}
                       type="datetime-local"
@@ -742,6 +744,7 @@ export function DisparoSendflow({
                     <button className="btn sm ghost" onClick={() => { setReagendandoId(null); setReagendaQuando('') }}>
                       Voltar
                     </button>
+                    </div>
                   </div>
                 ) : comecarId === d.disparo_id ? (
                   <div className="row" style={{ gap: 6, marginTop: 8 }}>
@@ -866,7 +869,7 @@ export function DisparoSendflow({
               <button
                 className="btn"
                 disabled={agindo}
-                onClick={() => acao(() => sendflowDisparoAgora(vivoId), 'Liberado, o motor pega no próximo minuto')}
+                onClick={() => comecarJa(vivoId)}
               >
                 <Zap size={15} /> Começar já
               </button>
@@ -896,7 +899,7 @@ export function DisparoSendflow({
               <button
                 className="btn"
                 disabled={agindo}
-                onClick={() => acao(() => sendflowDisparoAgora(vivoId), 'Partida liberada, o motor pega no próximo minuto')}
+                onClick={() => comecarJa(vivoId)}
               >
                 <Zap size={15} /> Começar já
               </button>
